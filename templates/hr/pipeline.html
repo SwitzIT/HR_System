@@ -1,0 +1,97 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import score, status as badge %}
+{% block title %}Candidates · {{ job.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('hr.jobs') }}">Jobs</a> / <a href="{{ url_for('hr.job_review', job_id=job.id) }}">{{ job.title }}</a> / Candidates</div>
+    <h1>{{ job.title }} — ranked candidates</h1>
+    <p>Sorted by match score. AI suggests <b>Shortlisted</b> at {{ job.shortlist_threshold }}% or above{% if job.status != 'approved' %} · job is {{ job.status.replace('_',' ') }}{% endif %}. Candidates only see a status after you post it.</p>
+  </div>
+  <div class="row">
+    {% if current_user.is_admin %}<a class="btn" href="{{ url_for('hr.decisions', job=job.id) }}">Decision log</a>{% endif %}
+    <a class="btn" href="{{ url_for('hr.export_csv', job_id=job.id) }}">Export CSV</a>
+    <form method="post" action="{{ url_for('hr.rescreen_all', job_id=job.id) }}" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Re-screening…'">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" title="Score every resume again against the current JD">↻ Re-screen all</button>
+    </form>
+  </div>
+</div>
+
+{% if n_screening %}
+<div class="flash info screening-wait" data-autorefresh="20" style="margin-bottom:12px"><span class="spinner"></span><b>{{ n_screening }}</b> resume{{ '' if n_screening == 1 else 's' }} waiting for or in AI screening. Scores appear here as each one finishes; this page refreshes automatically.</div>
+{% endif %}
+{% if n_unposted %}
+<div class="post-bar">
+  <div><b>{{ n_unposted }}</b> candidate{{ '' if n_unposted == 1 else 's' }} {{ 'has a stage they can' if n_unposted == 1 else 'have a stage they can' }}'t see yet (they see <i>Pending</i> or an older status).
+    {% if posting != 'unposted' %}<a href="{{ url_for('hr.pipeline', job_id=job.id, posting='unposted') }}">Show only these</a>{% else %}<a href="{{ url_for('hr.pipeline', job_id=job.id) }}">Show everyone</a>{% endif %}</div>
+  <div class="row" style="gap:8px">
+    <label class="muted" style="margin:0;font-size:13px"><input type="checkbox" id="selAll"> Select all not posted</label>
+    <button class="btn btn-primary btn-sm" form="postForm" id="postBtn" disabled>Post selected to candidates</button>
+  </div>
+</div>
+<form method="post" action="{{ url_for('hr.post_statuses', job_id=job.id) }}" id="postForm" onsubmit="return confirm('Post the current stage to the selected candidates? They will see it in My applications.')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+</form>
+{% endif %}
+
+<div class="tabs">
+  <a href="{{ url_for('hr.pipeline', job_id=job.id, min=min_score or None) }}" class="{{ 'on' if not status }}">All<span class="c">{{ by_status.values()|sum }}</span></a>
+  {% for s in statuses %}<a href="{{ url_for('hr.pipeline', job_id=job.id, status=s, min=min_score or None) }}" class="{{ 'on' if status == s }}">{{ s.title() }}<span class="c">{{ by_status.get(s, 0) }}</span></a>{% endfor %}
+</div>
+
+<form class="row" method="get" style="margin-bottom:14px">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <label style="margin:0" class="muted">Min score</label>
+  <input type="range" name="min" min="0" max="100" step="5" value="{{ min_score }}" oninput="this.nextElementSibling.textContent=this.value+'%'" style="width:180px">
+  <span style="font-weight:600;width:40px">{{ min_score }}%</span>
+  <select name="source" style="width:auto;padding:6px 8px;font-size:13px"><option value="">All sources</option><option value="internal" {{ 'selected' if source == 'internal' }}>Internal applicants</option><option value="external" {{ 'selected' if source == 'external' }}>External applicants</option></select>
+  <button class="btn btn-sm">Apply</button>
+</form>
+
+{% if apps %}
+<div class="card table-wrap"><table class="t">
+  <thead><tr><th></th><th>#</th><th>Candidate</th><th class="num">Match</th><th>Skill coverage</th><th>AI recommendation</th><th class="num">Exp.</th><th>Stage (internal)</th><th>Candidate sees</th><th></th></tr></thead>
+  <tbody>
+  {% for a in apps %}
+  {% set nm = a.matched_skills|length %}{% set nx = a.missing_skills|length %}
+  <tr class="{{ 'row-unposted' if a.needs_posting }}">
+    <td>{% if a.needs_posting %}<input type="checkbox" name="app_ids" value="{{ a.id }}" form="postForm" class="postSel" aria-label="Select {{ a.candidate.name }}">{% endif %}</td>
+    <td><span class="rank">{{ loop.index }}</span></td>
+    <td class="who"><b><a href="{{ url_for('hr.application', app_id=a.id) }}" style="color:var(--ink)">{{ a.candidate.name }}</a></b><small>{{ a.candidate.email }} · applied {{ a.applied_at|dt }}{% if a.source == 'internal' %} · <span class="badge b-internal" style="padding:0 6px">Internal</span>{% endif %}</small></td>
+    <td class="num">{% if a.screening_state in ('queued','running') and not a.screened_at %}<span class="badge b-screening"><span class="spinner"></span>{{ 'Screening' if a.screening_state == 'running' else 'Queued' }}</span>{% elif a.screening_state == 'failed' and not a.screened_at %}<span class="badge b-rejected">Failed</span>{% else %}{{ score(a.score_final) }}{% if a.screening_state in ('queued','running') %}<br><small class="muted">re-screening…</small>{% endif %}{% endif %}{% if a.score_ai is not none %}<br><small class="muted" title="AI score / keyword score">AI {{ a.score_ai|round|int }} · KW {{ a.score_keyword|round|int }}</small>{% endif %}</td>
+    <td style="min-width:200px">
+      <div class="bar" title="{{ nm }} matched, {{ nx }} missing"><span style="width:{{ (100 * nm / (nm + nx)) if (nm + nx) else 0 }}%"></span></div>
+      <small class="muted">{% if a.missing_skills %}Missing: {{ a.missing_skills[:3]|join(', ') }}{% if nx > 3 %} +{{ nx - 3 }}{% endif %}{% else %}All must-haves found{% endif %}</small>
+    </td>
+    <td>{{ a.recommendation or '—' }}{% if a.auto_shortlisted %}<br><small class="muted">AI suggested shortlist</small>{% endif %}</td>
+    <td class="num">{{ ('%g'|format(a.years_experience)) ~ 'y' if a.years_experience else '—' }}</td>
+    <td>
+      <form method="post" action="{{ url_for('hr.application_update', app_id=a.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        {% if a.status == 'withdrawn' %}<span class="badge b-withdrawn">Withdrawn</span>{% else %}
+        <select name="status" onchange="if(this.value==='rejected'){location.href='{{ url_for('hr.application', app_id=a.id, status='rejected') }}#decision';}else{this.form.submit();}" style="padding:5px 8px;font-size:13px;width:auto">
+          {% for s in statuses if s != 'withdrawn' %}<option value="{{ s }}" {{ 'selected' if s == a.status }}>{{ s.title() }}</option>{% endfor %}
+        </select>{% endif %}
+      </form>
+    </td>
+    <td>{{ badge(a.visible_status, a.candidate_status) }}{% if a.needs_posting %}<br><small class="unposted-tag">not posted</small>{% elif a.posted_at and a.status != 'withdrawn' %}<br><small class="muted">{{ a.posted_at|dt }}</small>{% endif %}</td>
+    <td class="num"><a class="btn btn-sm" href="{{ url_for('hr.application', app_id=a.id) }}">Review</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="card empty">No candidates {{ 'in this stage' if status else 'yet' }}.{% if job.status == 'approved' %} Share the <a href="{{ url_for('public.job_detail', job_id=job.id) }}" target="_blank">job link</a> to start receiving applications.{% endif %}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+(function () {
+  const all = document.getElementById('selAll'), btn = document.getElementById('postBtn');
+  const boxes = () => Array.from(document.querySelectorAll('.postSel'));
+  const sync = () => { const n = boxes().filter(b => b.checked).length; if (btn) { btn.disabled = !n; btn.textContent = n ? `Post ${n} to candidates` : 'Post selected to candidates'; } };
+  if (all) all.addEventListener('change', () => { boxes().forEach(b => b.checked = all.checked); sync(); });
+  boxes().forEach(b => b.addEventListener('change', sync));
+})();
+</script>{% endblock %}

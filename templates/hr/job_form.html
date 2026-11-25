@@ -1,0 +1,158 @@
+{% extends "hr/_layout.html" %}
+{% block title %}{{ 'Edit requisition' if job else 'New requisition' }}{% endblock %}
+{% macro val(name, default='') -%}{{ v.get(name) if v.get(name) not in (None, '') else default }}{%- endmacro %}
+{% macro num(name) -%}{%- set x = v.get(name) -%}{{ ('%g'|format(x|float)) if x not in (None, '') and x is number else (x or '') }}{%- endmacro %}
+{% macro req() %}<span class="req" title="Mandatory">*</span>{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if job %}<div class="crumbs"><a href="{{ url_for('hr.jobs') }}">Jobs</a> / <a href="{{ url_for('hr.job_review', job_id=job.id) }}">{{ job.title }}</a> / Requisition</div>{% endif %}
+    <h1>{{ 'Edit requisition' if job else 'New requisition' }}</h1>
+    <p>Fields marked <span class="req">*</span> are mandatory before the AI can write the JD. Use <b>Not applicable</b> where a requirement truly doesn't apply. Leaving it blank is not the same.</p>
+  </div>
+</div>
+{% if issues %}
+<div class="issue-box" id="issueBox" role="alert" tabindex="-1">
+  <b>{{ issues|length }} field{{ '' if issues|length == 1 else 's' }} need{{ 's' if issues|length == 1 else '' }} attention before the AI can write the JD</b>
+  <ul>{% for fid, label, msg, kind in issues %}
+    <li><a href="#{{ fid }}" data-jump="{{ fid }}">{{ label }}</a> <span class="muted">· {{ msg }}</span></li>{% endfor %}</ul>
+</div>
+{% endif %}
+<form method="post" id="reqForm" novalidate>
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<datalist id="industries">{% for i in opts.INDUSTRIES %}<option value="{{ i }}">{% endfor %}</datalist>
+<datalist id="currencies">{% for c in opts.CURRENCIES %}<option value="{{ c }}">{% endfor %}</datalist>
+<div class="split">
+  <div class="stack">
+  <div class="card card-b" style="padding:26px">
+    <div class="form-sec">Position details</div>
+    <div class="grid g2">
+      <div class="field"><label for="f-title">Job title {{ req() }}</label><input type="text" id="f-title" name="title" value="{{ val('title') }}" placeholder="e.g. Senior Data Analyst"></div>
+      <div class="field"><label for="f-dept">Department {{ req() }}</label><input type="text" id="f-dept" name="department" value="{{ val('department') }}" placeholder="e.g. Finance & Analytics"></div>
+      <div class="field"><label for="f-ind">Industry / business sector {{ req() }}</label><input type="text" id="f-ind" name="industry" list="industries" value="{{ val('industry') }}" placeholder="e.g. FMCG"></div>
+      <div class="field"><label for="f-open">Openings</label><input type="number" min="1" id="f-open" name="openings" value="{{ val('openings', 1) }}"></div>
+      <div class="field"><label for="f-city">City {{ req() }}</label><input type="text" id="f-city" name="city" value="{{ val('city') }}" placeholder="e.g. Dubai"></div>
+      <div class="field"><label for="f-country">Country {{ req() }}</label><input type="text" id="f-country" name="country" value="{{ val('country') }}" placeholder="e.g. United Arab Emirates"></div>
+      <div class="field"><label for="f-emp">Employment type {{ req() }}</label>
+        <select id="f-emp" name="employment_type" data-other="emp-other"><option value="">Choose…</option>{% for o in opts.EMPLOYMENT_TYPES %}<option {{ 'selected' if val('employment_type') == o }}>{{ o }}</option>{% endfor %}</select>
+        <input type="text" id="emp-other" name="employment_type_other" value="{{ val('employment_type_other') }}" placeholder="Describe, e.g. Internship (6 months)" style="margin-top:6px" {{ '' if val('employment_type') == 'Other' else 'hidden' }}></div>
+      <div class="field"><label for="f-mode">Work mode</label><select id="f-mode" name="work_mode">{% for o in opts.WORK_MODES %}<option {{ 'selected' if val('work_mode','On-site') == o }}>{{ o }}</option>{% endfor %}</select></div>
+    </div>
+
+    <div class="form-sec" style="margin-top:8px">Salary {{ req() }}</div>
+    <div class="grid g2">
+      <div class="field"><label for="f-sstr">Structure</label>
+        <select id="f-sstr" name="salary_structure"><option value="">Choose…</option>{% for k, l in opts.SALARY_STRUCTURES.items() %}<option value="{{ k }}" {{ 'selected' if val('salary_structure') == k }}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="f-cur">Currency</label><input type="text" id="f-cur" name="salary_currency" list="currencies" value="{{ val('salary_currency') }}" placeholder="e.g. AED" style="text-transform:uppercase"></div>
+      <div class="field"><label for="f-smin" id="smin-label">{{ 'Minimum' if val('salary_structure') == 'range' else 'Amount' }}</label><input type="text" inputmode="decimal" id="f-smin" name="salary_min" value="{{ num('salary_min') }}" placeholder="e.g. 15000"></div>
+      <div class="field" id="smax-field" {{ '' if val('salary_structure') == 'range' else 'hidden' }}><label for="f-smax">Maximum</label><input type="text" inputmode="decimal" id="f-smax" name="salary_max" value="{{ num('salary_max') }}" placeholder="e.g. 18000"></div>
+      <div class="field"><label for="f-sfreq">Frequency</label>
+        <select id="f-sfreq" name="salary_frequency" data-other="sfreq-other"><option value="">Choose…</option>{% for o in opts.SALARY_FREQUENCIES %}<option {{ 'selected' if val('salary_frequency') == o }}>{{ o }}</option>{% endfor %}</select>
+        <input type="text" id="sfreq-other" name="salary_frequency_other" value="{{ val('salary_frequency_other') }}" placeholder="Describe, e.g. Daily" style="margin-top:6px" {{ '' if val('salary_frequency') == 'Other' else 'hidden' }}></div>
+    </div>
+    <p class="hint" style="margin-top:-6px">Enter the amount exactly as the hiring manager confirmed it. The frequency is never assumed from the country.</p>
+
+    <div class="form-sec" style="margin-top:8px">Experience &amp; skills</div>
+    <div class="grid g2">
+      <div class="field"><label for="f-emin">Required years {{ req() }} <span class="hint">0 if none</span></label><input type="number" min="0" id="f-emin" name="experience_min" value="{{ val('experience_min') if v.get('experience_min') is not none else '' }}"></div>
+      <div class="field"><label for="f-emax">Maximum years <span class="hint">optional</span></label><input type="number" min="0" id="f-emax" name="experience_max" value="{{ val('experience_max') }}"></div>
+    </div>
+    <div class="field" id="f-ebasis" tabindex="-1"><label>Experience refers to {{ req() }}</label>
+      <div class="row" style="gap:18px">{% for k, l in opts.EXPERIENCE_BASIS.items() %}
+        <label class="check" style="margin:0"><input type="radio" name="experience_basis" value="{{ k }}" {{ 'checked' if val('experience_basis') == k }}> <span>{{ l }}</span></label>{% endfor %}</div>
+      <input type="text" id="exp-area" name="experience_area" value="{{ val('experience_area') }}" placeholder="Which area? e.g. Power BI development" style="margin-top:8px" {{ '' if val('experience_basis') == 'specific' else 'hidden' }}></div>
+    <div class="field"><label for="f-skills">Mandatory technical skills / competencies {{ req() }} <span class="hint">comma separated · used for ATS matching</span></label><input type="text" id="f-skills" name="skills" value="{{ val('skills') }}" placeholder="SQL, Power BI, Python, Stakeholder management"></div>
+
+    <div class="form-sec" style="margin-top:8px">Qualifications {{ req() }}</div>
+    {% for key, label, ph in [('education', 'Educational qualifications', "e.g. Bachelor's degree in Finance, Statistics or a related field"), ('certifications', 'Mandatory professional certifications', 'e.g. Microsoft Certified: Power BI Data Analyst Associate')] %}
+    <div class="field na-group">
+      <label for="f-{{ key }}">{{ label }}</label>
+      <input type="text" id="f-{{ key }}" name="{{ key }}" value="{{ val(key) }}" placeholder="{{ ph }}" {{ 'disabled' if v.get(key ~ '_na') }}>
+      <label class="check" style="margin-top:6px"><input type="checkbox" name="{{ key }}_na" value="1" data-na="f-{{ key }}" {{ 'checked' if v.get(key ~ '_na') }}> <span>Not applicable for this role (confirmed by the hiring manager)</span></label>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card card-b" style="padding:26px">
+    <div class="form-sec">Optional information <span class="hint" style="text-transform:none;letter-spacing:0">fill in what's known; the AI never invents these</span></div>
+    <div class="field"><label for="f-nice">Preferred technical skills <span class="hint">comma separated</span></label><input type="text" id="f-nice" name="nice_to_have" value="{{ val('nice_to_have') }}" placeholder="e.g. Microsoft Fabric, Dynamics 365"></div>
+    <div class="grid g2">
+      <div class="field"><label for="f-pq">Preferred qualifications</label><input type="text" id="f-pq" name="preferred_qualifications" value="{{ val('preferred_qualifications') }}"></div>
+      <div class="field"><label for="f-pie">Preferred industry experience</label><input type="text" id="f-pie" name="preferred_industry_exp" value="{{ val('preferred_industry_exp') }}" placeholder="e.g. FMCG distribution"></div>
+      <div class="field"><label for="f-rep">Reporting to</label><input type="text" id="f-rep" name="reporting_to" value="{{ val('reporting_to') }}" placeholder="e.g. Head of Analytics"></div>
+      <div class="field"><label for="f-team">Team management responsibilities</label><input type="text" id="f-team" name="team_management" value="{{ val('team_management') }}" placeholder="e.g. Leads 2 junior analysts"></div>
+    </div>
+    <div class="field"><label for="f-stk">Key stakeholders</label><input type="text" id="f-stk" name="key_stakeholders" value="{{ val('key_stakeholders') }}" placeholder="e.g. Country managers, Finance, Sales operations"></div>
+    <div class="field"><label for="f-need">Specific business or project context</label>
+      <textarea id="f-need" name="business_need" rows="4" placeholder="Why the role exists and what success looks like, e.g. Replace manual Excel sales reporting with automated Power BI dashboards for 4 subsidiaries.">{{ val('business_need') }}</textarea></div>
+    <div class="field"><label for="f-add">Additional role expectations</label><textarea id="f-add" name="additional_expectations" rows="2">{{ val('additional_expectations') }}</textarea></div>
+  </div>
+  </div>
+
+  <aside class="stack sticky">
+    <div class="card card-b">
+      <h3>ATS settings</h3>
+      <div class="field" style="margin-top:12px"><label for="f-thr">Auto-shortlist at or above</label>
+        <div class="row" style="flex-wrap:nowrap"><input type="number" min="0" max="100" id="f-thr" name="shortlist_threshold" value="{{ val('shortlist_threshold', 70) }}" style="width:90px"> <span class="muted">% match</span></div>
+        <p class="hint" style="margin-top:6px">Candidates scoring at or above this are moved to <i>Shortlisted</i>. HR can always override.</p>
+      </div>
+      <input type="hidden" name="tone" value="{{ val('tone', 'Professional') }}">
+    </div>
+    <div class="card card-b stack">
+      {% if job %}
+        <button class="btn btn-primary btn-lg" name="action" value="save" style="width:100%">Save requisition</button>
+        <button class="btn" name="action" value="regenerate" style="width:100%" onclick="return confirm('Replace the current JD with a fresh AI draft? The old version stays in history.')">Save &amp; regenerate JD</button>
+      {% else %}
+        <button class="btn btn-primary btn-lg" name="action" value="generate" style="width:100%" id="genBtn">✦ Generate JD with AI</button>
+        <button class="btn" name="action" value="manual" style="width:100%">Save &amp; write JD myself</button>
+      {% endif %}
+      <p class="hint" style="margin:0">{% if not AI_ON %}AI is off (rules mode): a structured template draft is created instead.{% elif current_user.is_admin %}Model: {{ AI_MODEL }}.{% endif %} All mandatory fields are checked first, and anything missing is listed in one message.</p>
+    </div>
+  </aside>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  // highlight each field that needs attention, with its message underneath
+  const issues = {{ (issues or [])|tojson }};
+  issues.forEach(([fid, label, msg, kind]) => {
+    const el = $(fid); if (!el) return;
+    el.hidden = false;
+    const field = el.closest('.field') || el;
+    if (field.hidden) field.hidden = false;
+    field.classList.add('invalid');
+    el.setAttribute('aria-invalid', 'true');
+    const note = document.createElement('div'); note.className = 'field-error'; note.textContent = msg;
+    field.appendChild(note);
+  });
+  document.querySelectorAll('[data-jump]').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault(); const el = $(a.dataset.jump); if (!el) return;
+    el.scrollIntoView({behavior: 'smooth', block: 'center'}); setTimeout(() => el.focus({preventScroll: true}), 300);
+  }));
+  if (issues.length && $('issueBox')) $('issueBox').focus();
+  // "Other" free-text boxes
+  document.querySelectorAll('select[data-other]').forEach((s) => {
+    const box = $(s.dataset.other); const sync = () => { box.hidden = s.value !== 'Other'; };
+    s.addEventListener('change', sync); sync();
+  });
+  // salary: show maximum only for a range
+  const str = $('f-sstr'), maxF = $('smax-field'), minL = $('smin-label');
+  const syncSal = () => { const r = str.value === 'range'; maxF.hidden = !r; minL.textContent = r ? 'Minimum' : 'Amount'; };
+  str.addEventListener('change', syncSal); syncSal();
+  // experience area only for "specific"
+  document.querySelectorAll('input[name=experience_basis]').forEach((r) => r.addEventListener('change', () => {
+    $('exp-area').hidden = document.querySelector('input[name=experience_basis]:checked').value !== 'specific';
+  }));
+  // Not applicable disables the text box
+  document.querySelectorAll('input[data-na]').forEach((c) => {
+    const t = $(c.dataset.na); const sync = () => { t.disabled = c.checked; if (c.checked) t.value = ''; };
+    c.addEventListener('change', sync);
+  });
+  $('reqForm').addEventListener('submit', (e) => {
+    const b = e.submitter;
+    if (b && b.value === 'generate') setTimeout(() => { b.disabled = true; b.textContent = 'Drafting JD…'; }, 0);
+  });
+})();
+</script>{% endblock %}

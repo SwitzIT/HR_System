@@ -1,0 +1,794 @@
+<title>TalentFlow Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout: a drawing-sheet document — narrow reading column, figures run wide in scroll frames, layers colour-coded consistently across every figure */
+:root {
+  --paper:#f3f5f4; --panel:#ffffff; --ink:#18221f; --ink-2:#4d5c58; --ink-3:#7b8a86; --rule:#cfd8d5;
+  --accent:#0f6e5c; --accent-soft:#dcefe9;
+  --b-client:#eceff1; --b-runtime:#e6ecf6; --b-web:#e2f1ec; --b-svc:#f6efdf; --b-data:#e6ebf3; --b-ext:#eeece6;
+  --s-client:#8b979d; --s-runtime:#6f86b0; --s-web:#3f8f7b; --s-svc:#b88a35; --s-ai:#7a5cc7; --s-data:#5f7ca3; --s-cfg:#8f8466;
+  --st-draft:#ecebe7; --st-pending:#faecd2; --st-approved:#d9efe1; --st-closed:#e4e4e4;
+  --display:"Schibsted Grotesk","IBM Plex Sans",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper:#111715; --panel:#1a2321; --ink:#e3ebe8; --ink-2:#a6b5b1; --ink-3:#7d8c88; --rule:#33413d;
+  --accent:#4fbfa3; --accent-soft:#183a32;
+  --b-client:#1a2022; --b-runtime:#182134; --b-web:#142a23; --b-svc:#2a2416; --b-data:#1a2130; --b-ext:#211f1a;
+  --s-client:#76848a; --s-runtime:#7e97c4; --s-web:#4fb197; --s-svc:#d0a453; --s-ai:#a68ae8; --s-data:#7f9cc4; --s-cfg:#aa9f7f;
+  --st-draft:#2a2a27; --st-pending:#3a2f17; --st-approved:#173525; --st-closed:#2b2b2b; color-scheme:dark } }
+:root[data-theme="dark"] {
+  --paper:#111715; --panel:#1a2321; --ink:#e3ebe8; --ink-2:#a6b5b1; --ink-3:#7d8c88; --rule:#33413d;
+  --accent:#4fbfa3; --accent-soft:#183a32;
+  --b-client:#1a2022; --b-runtime:#182134; --b-web:#142a23; --b-svc:#2a2416; --b-data:#1a2130; --b-ext:#211f1a;
+  --s-client:#76848a; --s-runtime:#7e97c4; --s-web:#4fb197; --s-svc:#d0a453; --s-ai:#a68ae8; --s-data:#7f9cc4; --s-cfg:#aa9f7f;
+  --st-draft:#2a2a27; --st-pending:#3a2f17; --st-approved:#173525; --st-closed:#2b2b2b; color-scheme:dark }
+body { background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased }
+.wrap { max-width:1240px; margin:0 auto; padding-block:40px 72px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)) }
+.read { max-width:72ch }
+.sheet-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:24px; align-items:end; border-bottom:2px solid var(--ink); padding-bottom:18px }
+.eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent) }
+h1 { font-family:var(--display); font-size:clamp(30px,5vw,46px); line-height:1.05; letter-spacing:-.02em; margin:.25em 0 .3em; text-wrap:balance }
+h2 { font-family:var(--display); font-size:22px; letter-spacing:-.01em; margin:0; text-wrap:balance }
+.lead { color:var(--ink-2); font-size:17px; margin:0 }
+.titleblock { font-family:var(--mono); font-size:12px; color:var(--ink-2); border:1px solid var(--rule); background:var(--panel); border-radius:6px; display:grid; grid-template-columns:auto auto; min-width:0 }
+.titleblock div { padding:6px 12px; border-bottom:1px solid var(--rule) }
+.titleblock div:nth-child(odd) { color:var(--ink-3); border-right:1px solid var(--rule) }
+.titleblock div:nth-last-child(-n+2) { border-bottom:0 }
+.legend { display:flex; flex-wrap:wrap; gap:8px 18px; margin:22px 0 0; font-size:13px; color:var(--ink-2) }
+.legend span { display:inline-flex; align-items:center; gap:7px }
+.sw { width:14px; height:14px; border-radius:3px; border:1.5px solid; display:inline-block }
+.lnk { width:26px; height:0; border-top:2px solid var(--ink-2); display:inline-block }
+.lnk.ai { border-color:var(--s-ai) } .lnk.cfg { border-top-style:dashed; border-color:var(--s-cfg) }
+section.fig { margin-top:52px }
+.fig-head { display:flex; gap:14px; align-items:baseline; margin-bottom:6px; flex-wrap:wrap }
+.fig-no { font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:.08em }
+.fig-cap { color:var(--ink-2); margin:0 0 14px; max-width:80ch }
+.fig-scroll { overflow-x:auto; background:var(--panel); border:1px solid var(--rule); border-radius:10px; padding:14px }
+.fig-scroll svg { display:block; width:100%; height:auto }
+.hint { display:none; font-size:12px; color:var(--ink-3); margin-top:6px; font-family:var(--mono) }
+@media (max-width:1000px) { .hint { display:block } }
+
+/* svg */
+svg text { font-family:var(--mono) }
+.t { font-family:var(--sans)!important; font-weight:600; font-size:15px; fill:var(--ink) }
+.t.sm { font-size:14px }
+.m { font-size:12.5px; fill:var(--ink-2) }
+.m.em { fill:var(--ink-3); font-style:italic }
+.m.key { fill:var(--ink); font-weight:500 }
+.m.dim, .al.dim { fill:var(--ink-3) }
+.lbl { font-size:11.5px; letter-spacing:.12em; fill:var(--ink); font-weight:500 }
+.lbl2 { font-size:11px; fill:var(--ink-3) }
+.al { font-size:12px; fill:var(--ink-2); paint-order:stroke; stroke:var(--panel); stroke-width:4px; stroke-linejoin:round }
+.band { stroke:none }
+.b-client { fill:var(--b-client) } .b-runtime { fill:var(--b-runtime) } .b-web { fill:var(--b-web) }
+.b-svc { fill:var(--b-svc) } .b-data { fill:var(--b-data) } .b-ext { fill:var(--b-ext) }
+.bx { fill:var(--panel); stroke-width:1.5 }
+.bx.client { stroke:var(--s-client) } .bx.runtime { stroke:var(--s-runtime) } .bx.web { stroke:var(--s-web) }
+.bx.svc { stroke:var(--s-svc) } .bx.ai { stroke:var(--s-ai); stroke-width:2 } .bx.data { stroke:var(--s-data) } .bx.cfg { stroke:var(--s-cfg); stroke-dasharray:5 4 }
+.chip { fill:var(--b-data); stroke:var(--s-data); stroke-width:1 }
+.st { stroke-width:1.5 }
+.st.draft { fill:var(--st-draft); stroke:var(--s-client) } .st.pending { fill:var(--st-pending); stroke:var(--s-svc) }
+.st.approved { fill:var(--st-approved); stroke:var(--s-web) } .st.closed { fill:var(--st-closed); stroke:var(--s-client) }
+.ln { fill:none; stroke-width:1.6; stroke:var(--ink-2) }
+.ln.ai { stroke:var(--s-ai); stroke-width:2 } .ln.cfg { stroke:var(--s-cfg) } .ln.ok { stroke:var(--s-web); stroke-width:2 }
+.ln.thin { stroke:var(--rule); stroke-width:1 }
+.mk { fill:var(--ink-2) } .mk.ai { fill:var(--s-ai) } .mk.cfg { fill:var(--s-cfg) } .mk.ok { fill:var(--s-web) }
+
+/* tables & lists */
+.tbl-wrap { overflow-x:auto; background:var(--panel); border:1px solid var(--rule); border-radius:10px }
+table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px }
+th { text-align:left; font-family:var(--mono); font-weight:500; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); padding:10px 14px; border-bottom:1px solid var(--rule) }
+td { padding:9px 14px; border-bottom:1px solid var(--rule); vertical-align:top }
+tr:last-child td { border-bottom:0 }
+code { font-family:var(--mono); font-size:12.5px; color:var(--ink) }
+.verb { font-family:var(--mono); font-size:11px; color:var(--accent); white-space:nowrap }
+.cols { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px }
+.dep { background:var(--panel); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; min-width:0 }
+.dep h3 { font-family:var(--display); font-size:17px; margin:0 0 4px }
+.dep .tag { font-family:var(--mono); font-size:11.5px; color:var(--ink-3) }
+.dep ul { margin:12px 0 0; padding-left:18px; color:var(--ink-2); font-size:14px }
+.dep li { margin:4px 0 }
+.dep pre { font-family:var(--mono); font-size:12px; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:8px 10px; overflow-x:auto; margin:12px 0 0; color:var(--ink) }
+dl.sec { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 28px; margin:0 }
+.sec-item { padding:12px 0; border-top:1px solid var(--rule); min-width:0 }
+.sec-item dt { font-weight:600 }
+.sec-item dd { margin:2px 0 0; color:var(--ink-2); font-size:14px }
+@media (max-width:820px) { .cols, dl.sec { grid-template-columns:1fr } .sheet-head { grid-template-columns:1fr } }
+</style>
+
+<div class="wrap">
+  <header class="sheet-head">
+    <div class="read">
+      <div class="eyebrow">Talent Acquisition platform · system design</div>
+      <h1>TalentFlow architecture</h1>
+      <p class="lead">How the careers site, the HR Talent Console, the AI job-description agent and the resume screening engine fit together, from browser to database.</p>
+    </div>
+    <div class="titleblock" aria-label="Document details">
+      <div>Stack</div><div>Flask 3 · SQLAlchemy · Jinja2</div>
+      <div>AI</div><div>LangChain · Hugging Face</div>
+      <div>DB</div><div>SQLite → PostgreSQL</div>
+      <div>Revision</div><div>09 Nov 2026</div>
+    </div>
+  </header>
+
+  <div class="legend" aria-label="Legend">
+    <span><i class="sw" style="background:var(--b-web);border-color:var(--s-web)"></i>Web layer</span>
+    <span><i class="sw" style="background:var(--b-svc);border-color:var(--s-svc)"></i>Domain logic</span>
+    <span><i class="sw" style="background:var(--panel);border-color:var(--s-ai)"></i>External AI</span>
+    <span><i class="sw" style="background:var(--b-data);border-color:var(--s-data)"></i>Data</span>
+    <span><i class="lnk"></i>Request or call</span>
+    <span><i class="lnk ai"></i>AI call</span>
+    <span><i class="lnk cfg"></i>Config / ops</span>
+  </div>
+
+  <section class="fig" id="system">
+    <div class="fig-head"><span class="fig-no">FIG 1</span><h2>System architecture</h2></div>
+    <p class="fig-cap">A single Flask application in six layers. Both audiences use the same app; role guards decide which blueprint they can reach. All AI goes through LangChain to Hugging Face models by default; moving to a paid provider is a .env change, and the app keeps working in rules mode without any model.</p>
+    <div class="fig-scroll"><svg viewBox="0 0 1200 1000" role="img" aria-label="TalentFlow system architecture" style="min-width:1000px"><defs><marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ink"/></marker><marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ai"/></marker><marker id="a-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk cfg"/></marker><marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ok"/></marker></defs><rect x="960" y="0" width="240" height="1000" class="band b-ext"/>
+<text x="976" y="24" class="lbl">EXTERNAL &amp; OPS</text>
+<text x="976" y="42" class="lbl2">outside the web app</text>
+<rect x="0" y="0" width="950" height="100" class="band b-client"/>
+<text x="16" y="24" class="lbl">CLIENTS</text>
+<text x="16" y="42" class="lbl2">web browsers</text>
+<rect x="0" y="116" width="950" height="82" class="band b-runtime"/>
+<text x="16" y="140" class="lbl">RUNTIME</text>
+<text x="16" y="158" class="lbl2">WSGI server</text>
+<rect x="0" y="214" width="950" height="90" class="band b-web"/>
+<text x="16" y="238" class="lbl">MIDDLEWARE</text>
+<text x="16" y="256" class="lbl2">every request</text>
+<rect x="0" y="320" width="950" height="256" class="band b-web"/>
+<text x="16" y="344" class="lbl">ROUTES</text>
+<text x="16" y="362" class="lbl2">Flask blueprints</text>
+<text x="16" y="377" class="lbl2">views_*.py</text>
+<text x="16" y="392" class="lbl2">render Jinja2</text>
+<text x="16" y="407" class="lbl2">templates/</text>
+<rect x="0" y="592" width="950" height="204" class="band b-svc"/>
+<text x="16" y="616" class="lbl">DOMAIN</text>
+<text x="16" y="634" class="lbl2">business logic</text>
+<text x="16" y="649" class="lbl2">&amp; AI</text>
+<rect x="0" y="812" width="950" height="188" class="band b-data"/>
+<text x="16" y="836" class="lbl">DATA</text>
+<text x="16" y="854" class="lbl2">persistence</text>
+<rect x="140" y="18" width="370" height="66" rx="8" class="bx client"/>
+<text x="154" y="42" class="t">Candidate</text>
+<text x="154" y="62" class="m" xml:space="preserve">careers site · apply · track status</text>
+<rect x="560" y="18" width="370" height="66" rx="8" class="bx client"/>
+<text x="574" y="42" class="t">HR recruiter / HR admin</text>
+<text x="574" y="62" class="m" xml:space="preserve">Talent Console · JDs · approvals · pipeline</text>
+<rect x="140" y="132" width="790" height="50" rx="8" class="bx runtime"/>
+<text x="154" y="163" class="t">Gunicorn  →  Flask app  ·  create_app() in app.py</text>
+<text x="918" y="163" class="m" text-anchor="end">Docker · Render Procfile · python app.py (dev)</text>
+<path d="M325,84 L325,130" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M745,84 L745,130" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="338" y="112" class="al" text-anchor="start">HTTPS</text>
+<text x="758" y="112" class="al" text-anchor="start">HTTPS</text>
+<rect x="140" y="226" width="185" height="66" rx="8" class="bx web"/>
+<text x="154" y="250" class="t">CSRFProtect</text>
+<text x="154" y="270" class="m" xml:space="preserve">Flask-WTF tokens</text>
+<rect x="341" y="226" width="185" height="66" rx="8" class="bx web"/>
+<text x="355" y="250" class="t">Session auth</text>
+<text x="355" y="270" class="m" xml:space="preserve">Flask-Login</text>
+<rect x="542" y="226" width="185" height="66" rx="8" class="bx web"/>
+<text x="556" y="250" class="t">Role guards</text>
+<text x="556" y="270" class="m" xml:space="preserve">hr_required</text>
+<text x="556" y="285" class="m" xml:space="preserve">candidate_required</text>
+<rect x="743" y="226" width="185" height="66" rx="8" class="bx web"/>
+<text x="757" y="250" class="t">Error handlers</text>
+<text x="757" y="270" class="m" xml:space="preserve">403 · 404 · 413</text>
+<path d="M535,182 L535,224" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="140" y="334" width="165" height="226" rx="8" class="bx web"/>
+<text x="154" y="358" class="t">public  /</text>
+<text x="154" y="378" class="m" xml:space="preserve">/  home</text>
+<text x="154" y="395" class="m" xml:space="preserve">/jobs  search</text>
+<text x="154" y="412" class="m" xml:space="preserve">/jobs/&lt;id&gt;  JD page</text>
+<text x="154" y="429" class="m" xml:space="preserve"></text>
+<text x="154" y="446" class="m em" xml:space="preserve">approved jobs only;</text>
+<text x="154" y="463" class="m em" xml:space="preserve">HR can preview</text>
+<rect x="313" y="334" width="165" height="226" rx="8" class="bx web"/>
+<text x="327" y="358" class="t">auth</text>
+<text x="327" y="378" class="m" xml:space="preserve">/login</text>
+<text x="327" y="395" class="m" xml:space="preserve">/register</text>
+<text x="327" y="412" class="m" xml:space="preserve">/logout  POST</text>
+<text x="327" y="429" class="m" xml:space="preserve">/account</text>
+<text x="327" y="446" class="m" xml:space="preserve"></text>
+<text x="327" y="463" class="m em" xml:space="preserve">candidates sign up;</text>
+<text x="327" y="480" class="m em" xml:space="preserve">HR is invite-only</text>
+<rect x="486" y="334" width="200" height="226" rx="8" class="bx web"/>
+<text x="500" y="358" class="t">candidate  /me</text>
+<text x="500" y="378" class="m" xml:space="preserve">/apply/&lt;job_id&gt;</text>
+<text x="500" y="395" class="m" xml:space="preserve">  upload → screen</text>
+<text x="500" y="412" class="m" xml:space="preserve">/applications  status</text>
+<text x="500" y="429" class="m" xml:space="preserve">/applications/&lt;id&gt;</text>
+<text x="500" y="446" class="m" xml:space="preserve">  /withdraw</text>
+<text x="500" y="463" class="m" xml:space="preserve">/resume/&lt;id&gt;</text>
+<text x="500" y="480" class="m" xml:space="preserve">  owner or HR only</text>
+<rect x="694" y="334" width="236" height="226" rx="8" class="bx web"/>
+<text x="708" y="358" class="t">hr  /hr</text>
+<text x="708" y="378" class="m" xml:space="preserve">/  dashboard</text>
+<text x="708" y="395" class="m" xml:space="preserve">/jobs · /jobs/new · /edit</text>
+<text x="708" y="412" class="m" xml:space="preserve">/jobs/&lt;id&gt;  JD review</text>
+<text x="708" y="429" class="m" xml:space="preserve">/jobs/&lt;id&gt;/action</text>
+<text x="708" y="446" class="m" xml:space="preserve">  approve · regenerate · …</text>
+<text x="708" y="463" class="m" xml:space="preserve">/revision/&lt;id&gt;/restore</text>
+<text x="708" y="480" class="m" xml:space="preserve">/jobs/&lt;id&gt;/candidates</text>
+<text x="708" y="497" class="m" xml:space="preserve">/rescreen · /export.csv</text>
+<text x="708" y="514" class="m" xml:space="preserve">/applications/&lt;id&gt;[/update]</text>
+<text x="708" y="531" class="m" xml:space="preserve">/team · /preview</text>
+<path d="M535,292 L535,332" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M222,560 L222,584" class="ln ink"/>
+<path d="M395,560 L395,584" class="ln ink"/>
+<path d="M586,560 L586,584" class="ln ink"/>
+<path d="M812,560 L812,584" class="ln ink"/>
+<path d="M222,584 L812,584" class="ln ink"/>
+<path d="M388,584 L388,606" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M617,584 L617,606" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="650" y="601" class="al" text-anchor="start">views call domain services</text>
+<rect x="140" y="608" width="130" height="172" rx="8" class="bx svc"/>
+<text x="154" y="632" class="t sm">resume_parser</text>
+<text x="154" y="652" class="m" xml:space="preserve">extract_text()</text>
+<text x="154" y="668" class="m" xml:space="preserve"></text>
+<text x="154" y="684" class="m" xml:space="preserve">pypdf:</text>
+<text x="154" y="700" class="m" xml:space="preserve"> every page</text>
+<text x="154" y="716" class="m" xml:space="preserve">python-docx:</text>
+<text x="154" y="732" class="m" xml:space="preserve"> paras+tables</text>
+<text x="154" y="748" class="m em" xml:space="preserve">no poppler</text>
+<rect x="288" y="608" width="200" height="172" rx="8" class="bx svc"/>
+<text x="302" y="632" class="t">services.py</text>
+<text x="302" y="652" class="m" xml:space="preserve">store_resume()</text>
+<text x="302" y="668" class="m" xml:space="preserve">  uuid file name</text>
+<text x="302" y="684" class="m" xml:space="preserve">run_screening()</text>
+<text x="302" y="700" class="m" xml:space="preserve">  scores → Application</text>
+<text x="302" y="716" class="m" xml:space="preserve">  auto-shortlist</text>
+<text x="302" y="732" class="m" xml:space="preserve">render_md()  md+nh3</text>
+<text x="302" y="748" class="m" xml:space="preserve">save_revision()</text>
+<text x="302" y="764" class="m" xml:space="preserve">  JD history</text>
+<rect x="506" y="608" width="222" height="172" rx="8" class="bx svc"/>
+<text x="520" y="632" class="t">ai/  (LangChain)</text>
+<text x="520" y="652" class="m" xml:space="preserve">generate_jd() · screen()</text>
+<text x="520" y="668" class="m" xml:space="preserve">  prompt | model | parser</text>
+<text x="520" y="684" class="m" xml:space="preserve">providers.get_chat_model()</text>
+<text x="520" y="700" class="m" xml:space="preserve">  HF API · HF local · paid</text>
+<text x="520" y="716" class="m" xml:space="preserve">Pydantic ScreeningResult</text>
+<text x="520" y="732" class="m" xml:space="preserve">  + one JSON repair</text>
+<text x="520" y="748" class="m" xml:space="preserve">embeddings similarity</text>
+<text x="520" y="764" class="m em" xml:space="preserve">failure → rules mode</text>
+<rect x="746" y="608" width="184" height="172" rx="8" class="bx svc"/>
+<text x="760" y="632" class="t">scoring.py</text>
+<text x="760" y="652" class="m" xml:space="preserve">keyword_score()</text>
+<text x="760" y="668" class="m" xml:space="preserve"> 60% must-have</text>
+<text x="760" y="684" class="m" xml:space="preserve"> 15% nice-to-have</text>
+<text x="760" y="700" class="m" xml:space="preserve"> 15% experience fit</text>
+<text x="760" y="716" class="m" xml:space="preserve"> 10% similarity</text>
+<text x="760" y="732" class="m" xml:space="preserve">skill ALIASES</text>
+<text x="760" y="748" class="m" xml:space="preserve">estimate_years()</text>
+<path d="M288,660 L272,660" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M488,660 L504,660" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M728,660 L744,660" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="975" y="608" width="210" height="172" rx="8" class="bx ai"/>
+<text x="989" y="632" class="t">Hugging Face</text>
+<text x="989" y="652" class="m" xml:space="preserve">Inference Providers API</text>
+<text x="989" y="668" class="m" xml:space="preserve">Qwen2.5-7B-Instruct-1M</text>
+<text x="989" y="684" class="m" xml:space="preserve">MiniLM-L6-v2 embeddings</text>
+<text x="989" y="700" class="m" xml:space="preserve">or local transformers</text>
+<text x="989" y="716" class="m" xml:space="preserve"></text>
+<text x="989" y="732" class="m" xml:space="preserve">Paid: init_chat_model()</text>
+<text x="989" y="748" class="m" xml:space="preserve">OpenAI·Anthropic·Google</text>
+<rect x="975" y="404" width="210" height="150" rx="8" class="bx cfg"/>
+<text x="989" y="428" class="t">LangSmith</text>
+<text x="989" y="448" class="m" xml:space="preserve">traces every chain run:</text>
+<text x="989" y="464" class="m" xml:space="preserve">prompts · outputs ·</text>
+<text x="989" y="480" class="m" xml:space="preserve">latency · tokens · errors</text>
+<text x="989" y="496" class="m" xml:space="preserve"></text>
+<text x="989" y="512" class="m em" xml:space="preserve">optional; on when</text>
+<text x="989" y="528" class="m em" xml:space="preserve">LANGSMITH_API_KEY is set</text>
+<path d="M617,780 L617,800 L1080,800 L1080,782" class="ln ai" marker-end="url(#a-ai)"/>
+<text x="850" y="795" class="al" text-anchor="middle">chat completion · embeddings over HTTPS</text>
+<rect x="140" y="830" width="180" height="146" rx="8" class="bx data"/>
+<text x="154" y="854" class="t">SQLAlchemy ORM</text>
+<text x="154" y="874" class="m" xml:space="preserve">models.py</text>
+<text x="154" y="890" class="m" xml:space="preserve">Flask-SQLAlchemy</text>
+<text x="154" y="906" class="m" xml:space="preserve">create_all() on start</text>
+<text x="154" y="922" class="m" xml:space="preserve"></text>
+<text x="154" y="938" class="m em" xml:space="preserve">JSON lists as text</text>
+<rect x="336" y="830" width="380" height="146" rx="8" class="bx data"/>
+<text x="350" y="854" class="t">Relational database</text>
+<text x="350" y="874" class="m" xml:space="preserve">SQLite  instance/talentflow.db  (default)</text>
+<text x="350" y="890" class="m" xml:space="preserve">PostgreSQL via DATABASE_URL  (production)</text>
+<rect x="350" y="902" width="46" height="24" rx="5" class="chip"/>
+<text x="373" y="918" class="m" text-anchor="middle">User</text>
+<rect x="404.4" y="902" width="39" height="24" rx="5" class="chip"/>
+<text x="424" y="918" class="m" text-anchor="middle">Job</text>
+<rect x="451.2" y="902" width="92" height="24" rx="5" class="chip"/>
+<text x="497" y="918" class="m" text-anchor="middle">JDRevision</text>
+<rect x="350" y="934" width="100" height="24" rx="5" class="chip"/>
+<text x="400" y="950" class="m" text-anchor="middle">Application</text>
+<rect x="457.6" y="934" width="100" height="24" rx="5" class="chip"/>
+<text x="507" y="950" class="m" text-anchor="middle">ActivityLog</text>
+<rect x="732" y="830" width="198" height="146" rx="8" class="bx data"/>
+<text x="746" y="854" class="t">Resume file store</text>
+<text x="746" y="874" class="m" xml:space="preserve">instance/resumes/</text>
+<text x="746" y="890" class="m" xml:space="preserve">&lt;uuid&gt;.pdf | .docx</text>
+<text x="746" y="906" class="m" xml:space="preserve"></text>
+<text x="746" y="922" class="m em" xml:space="preserve">local disk or volume;</text>
+<text x="746" y="938" class="m em" xml:space="preserve">swap for S3 / Blob</text>
+<path d="M300,780 L300,828" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M320,880 L334,880" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M460,780 L460,814 L831,814 L831,828" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="560" y="826" class="al" text-anchor="middle">save upload</text>
+<rect x="975" y="214" width="210" height="140" rx="8" class="bx cfg"/>
+<text x="989" y="238" class="t">.env  →  config.py</text>
+<text x="989" y="258" class="m" xml:space="preserve">SECRET_KEY · DATABASE_URL</text>
+<text x="989" y="272" class="m" xml:space="preserve">LLM_PROVIDER · LLM_MODEL</text>
+<text x="989" y="286" class="m" xml:space="preserve">HUGGINGFACEHUB_API_TOKEN</text>
+<text x="989" y="300" class="m" xml:space="preserve">EMBEDDINGS_PROVIDER</text>
+<text x="989" y="314" class="m" xml:space="preserve">LANGSMITH_API_KEY</text>
+<text x="989" y="328" class="m" xml:space="preserve">AI_WEIGHT · THRESHOLD</text>
+<text x="989" y="342" class="m" xml:space="preserve">maker-checker flag</text>
+<path d="M1080,214 L1080,157 L932,157" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/>
+<text x="1006" y="150" class="al" text-anchor="middle">loads settings</text>
+<rect x="975" y="830" width="210" height="146" rx="8" class="bx cfg"/>
+<text x="989" y="854" class="t">Flask CLI</text>
+<text x="989" y="874" class="m" xml:space="preserve">flask seed-demo</text>
+<text x="989" y="890" class="m" xml:space="preserve">flask create-hr</text>
+<text x="989" y="906" class="m" xml:space="preserve"></text>
+<text x="989" y="922" class="m" xml:space="preserve">first start creates the</text>
+<text x="989" y="938" class="m" xml:space="preserve">HR admin from</text>
+<text x="989" y="954" class="m" xml:space="preserve">ADMIN_EMAIL · _PASSWORD</text>
+<path d="M975,903 L932,903" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/></svg></div>
+    <div class="hint">Scroll sideways to see the full drawing.</div>
+  </section>
+
+  <section class="fig" id="ai-layer">
+    <div class="fig-head"><span class="fig-no">FIG 2</span><h2>AI layer (LangChain)</h2></div>
+    <p class="fig-cap">Every model call is a LangChain chain: a prompt template, a chat model and a parser. One factory builds the model from <code>LLM_PROVIDER</code> and <code>LLM_MODEL</code>, so free Hugging Face models and paid models run the same chains. Free models get JSON instructions, tolerant parsing and one repair attempt; paid models use native structured output.</p>
+    <div class="fig-scroll"><svg viewBox="0 0 1200 660" role="img" aria-label="AI layer built on LangChain" style="min-width:1000px"><defs><marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ink"/></marker><marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ai"/></marker><marker id="a-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk cfg"/></marker><marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ok"/></marker></defs><rect x="20" y="46" width="190" height="450" rx="8" class="bx web"/>
+<text x="34" y="70" class="t">Callers</text>
+<text x="34" y="90" class="m" xml:space="preserve">views_hr.py</text>
+<text x="34" y="107" class="m" xml:space="preserve">  New JD (AI)</text>
+<text x="34" y="124" class="m" xml:space="preserve">  Refine with AI</text>
+<text x="34" y="141" class="m" xml:space="preserve">  → ai.generate_jd()</text>
+<text x="34" y="158" class="m" xml:space="preserve"></text>
+<text x="34" y="175" class="m" xml:space="preserve"></text>
+<text x="34" y="192" class="m" xml:space="preserve"></text>
+<text x="34" y="209" class="m" xml:space="preserve">services.py</text>
+<text x="34" y="226" class="m" xml:space="preserve">  run_screening()</text>
+<text x="34" y="243" class="m" xml:space="preserve">  → ai.screen()</text>
+<text x="34" y="260" class="m" xml:space="preserve"></text>
+<text x="34" y="277" class="m" xml:space="preserve"></text>
+<text x="34" y="294" class="m" xml:space="preserve"></text>
+<text x="34" y="311" class="m" xml:space="preserve"></text>
+<text x="34" y="328" class="m" xml:space="preserve"></text>
+<text x="34" y="345" class="m" xml:space="preserve"></text>
+<text x="34" y="362" class="m" xml:space="preserve"></text>
+<text x="34" y="379" class="m" xml:space="preserve">ai.screen() also</text>
+<text x="34" y="396" class="m" xml:space="preserve">  asks for similarity</text>
+<text x="240" y="36" class="lbl" text-anchor="start">JD CHAIN</text>
+<rect x="240" y="46" width="210" height="88" rx="8" class="bx svc"/>
+<text x="254" y="70" class="t">ChatPromptTemplate</text>
+<text x="254" y="90" class="m" xml:space="preserve">JD_GENERATE | JD_REVISE</text>
+<text x="254" y="107" class="m" xml:space="preserve">rules + requisition</text>
+<rect x="478" y="46" width="180" height="88" rx="8" class="bx ai"/>
+<text x="492" y="70" class="t">Chat model</text>
+<text x="492" y="90" class="m" xml:space="preserve">purpose = &quot;jd&quot;</text>
+<text x="492" y="107" class="m" xml:space="preserve">temperature 0.4</text>
+<rect x="686" y="46" width="200" height="88" rx="8" class="bx svc"/>
+<text x="700" y="70" class="t">StrOutputParser</text>
+<text x="700" y="90" class="m" xml:space="preserve">clean_text(): strips</text>
+<text x="700" y="107" class="m" xml:space="preserve">&lt;think&gt; and ``` fences</text>
+<path d="M450,90 L476,90" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M658,90 L684,90" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M210,90 L238,90" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="240" y="166" class="lbl" text-anchor="start">SCREENING CHAIN</text>
+<rect x="240" y="176" width="210" height="128" rx="8" class="bx svc"/>
+<text x="254" y="200" class="t">ChatPromptTemplate</text>
+<text x="254" y="220" class="m" xml:space="preserve">SCREEN + format</text>
+<text x="254" y="236" class="m" xml:space="preserve">instructions from</text>
+<text x="254" y="252" class="m" xml:space="preserve">PydanticOutputParser</text>
+<text x="254" y="268" class="m em" xml:space="preserve">paid models instead use</text>
+<text x="254" y="284" class="m em" xml:space="preserve">with_structured_output()</text>
+<rect x="478" y="176" width="180" height="128" rx="8" class="bx ai"/>
+<text x="492" y="200" class="t">Chat model</text>
+<text x="492" y="220" class="m" xml:space="preserve">purpose = &quot;screen&quot;</text>
+<text x="492" y="237" class="m" xml:space="preserve">temperature 0.1</text>
+<rect x="686" y="176" width="200" height="128" rx="8" class="bx svc"/>
+<text x="700" y="200" class="t">Parse &amp; validate</text>
+<text x="700" y="220" class="m" xml:space="preserve">extract_json()</text>
+<text x="700" y="236" class="m" xml:space="preserve">ScreeningResult</text>
+<text x="700" y="252" class="m" xml:space="preserve">(Pydantic, lenient:</text>
+<text x="700" y="268" class="m" xml:space="preserve"> &quot;85%&quot; → 85)</text>
+<path d="M450,236 L476,236" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M658,236 L684,236" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M210,236 L238,236" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="686" y="330" width="200" height="64" rx="8" class="bx svc"/>
+<text x="700" y="354" class="t">JSON_REPAIR prompt</text>
+<text x="700" y="374" class="m" xml:space="preserve">once, if parsing fails</text>
+<path d="M786,304 L786,328" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="796" y="321" class="al dim" text-anchor="start">invalid</text>
+<path d="M686,362 L568,362 L568,306" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="627" y="356" class="al dim" text-anchor="middle">re-ask</text>
+<text x="240" y="418" class="lbl" text-anchor="start">SIMILARITY</text>
+<rect x="240" y="428" width="210" height="68" rx="8" class="bx svc"/>
+<text x="254" y="452" class="t">JD + resume text</text>
+<text x="254" y="472" class="m" xml:space="preserve">first 4,000 chars each</text>
+<rect x="478" y="428" width="180" height="68" rx="8" class="bx ai"/>
+<text x="492" y="452" class="t">Embeddings</text>
+<text x="492" y="472" class="m" xml:space="preserve">JD vector cached</text>
+<rect x="686" y="428" width="200" height="68" rx="8" class="bx svc"/>
+<text x="700" y="452" class="t">Cosine similarity</text>
+<text x="700" y="472" class="m" xml:space="preserve">→ 10% of keyword score</text>
+<path d="M450,462 L476,462" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M658,462 L684,462" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M210,462 L238,462" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="240" y="530" width="646" height="116" rx="8" class="bx cfg"/>
+<text x="254" y="554" class="t">providers.py  ·  get_chat_model(purpose)  ·  get_embeddings()</text>
+<rect x="256" y="568" width="196" height="66" rx="6" class="chip"/>
+<text x="266" y="587" class="m key">huggingface</text>
+<text x="266" y="604" class="m">HuggingFaceEndpoint</text>
+<text x="266" y="620" class="m">→ ChatHuggingFace</text>
+<rect x="466" y="568" width="196" height="66" rx="6" class="chip"/>
+<text x="476" y="587" class="m key">huggingface_local</text>
+<text x="476" y="604" class="m">HuggingFacePipeline</text>
+<text x="476" y="620" class="m">(transformers, free)</text>
+<rect x="676" y="568" width="196" height="66" rx="6" class="chip"/>
+<text x="686" y="587" class="m key">openai · anthropic ·</text>
+<text x="686" y="604" class="m">google_genai · groq …</text>
+<text x="686" y="620" class="m">init_chat_model()</text>
+<path d="M568,528 L568,498" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/>
+<text x="580" y="516" class="al dim" text-anchor="start">LLM_PROVIDER picks which class builds every model box</text>
+<rect x="918" y="46" width="262" height="200" rx="8" class="bx cfg"/>
+<text x="932" y="70" class="t">LangSmith tracing</text>
+<text x="932" y="90" class="m" xml:space="preserve">every chain run:</text>
+<text x="932" y="107" class="m" xml:space="preserve">prompt, output, latency,</text>
+<text x="932" y="124" class="m" xml:space="preserve">tokens, errors</text>
+<text x="932" y="141" class="m" xml:space="preserve"></text>
+<text x="932" y="158" class="m" xml:space="preserve">LANGSMITH_API_KEY</text>
+<text x="932" y="175" class="m" xml:space="preserve">LANGSMITH_PROJECT = talentflow</text>
+<text x="932" y="192" class="m em" xml:space="preserve">off when no key is set</text>
+<path d="M886,110 L916,110" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/>
+<path d="M886,200 L916,200" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/>
+<rect x="918" y="270" width="262" height="226" rx="8" class="bx svc"/>
+<text x="932" y="294" class="t">Fallbacks</text>
+<text x="932" y="314" class="m" xml:space="preserve">no model configured</text>
+<text x="932" y="331" class="m" xml:space="preserve">402 no credits · 401 bad key</text>
+<text x="932" y="348" class="m" xml:space="preserve">429 rate limit</text>
+<text x="932" y="365" class="m" xml:space="preserve">model not served</text>
+<text x="932" y="382" class="m" xml:space="preserve">unreadable JSON after repair</text>
+<text x="932" y="399" class="m" xml:space="preserve"></text>
+<text x="932" y="416" class="m" xml:space="preserve">→ template JD or keyword</text>
+<text x="932" y="433" class="m" xml:space="preserve">  score, plus a plain-English</text>
+<text x="932" y="450" class="m" xml:space="preserve">  reason shown to HR</text>
+<path d="M886,280 L916,300" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="918" y="530" width="262" height="116" rx="8" class="bx ai"/>
+<text x="932" y="554" class="t">Models</text>
+<text x="932" y="574" class="m" xml:space="preserve">HF Inference Providers (API)</text>
+<text x="932" y="591" class="m" xml:space="preserve">this server (local, free)</text>
+<text x="932" y="608" class="m" xml:space="preserve">OpenAI · Anthropic · Google</text>
+<path d="M886,588 L916,588" class="ln ai" marker-end="url(#a-ai)"/></svg></div>
+    <div class="hint">Scroll sideways to see the full drawing.</div>
+  </section>
+
+  <section class="fig" id="jd-lifecycle">
+    <div class="fig-head"><span class="fig-no">FIG 3</span><h2>Job description lifecycle</h2></div>
+    <p class="fig-cap">Requirement 1: the AI agent drafts, a human reviews and approves. Job.status moves through four states; only <code>approved</code> jobs appear on the careers site.</p>
+    <div class="fig-scroll"><svg viewBox="0 0 1200 440" role="img" aria-label="Job description lifecycle" style="min-width:980px"><defs><marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ink"/></marker><marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ai"/></marker><marker id="a-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk cfg"/></marker><marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ok"/></marker></defs><rect x="20" y="150" width="170" height="64" rx="8" class="bx client"/>
+<text x="105.0" y="178" class="t" text-anchor="middle">Requisition form</text>
+<text x="105.0" y="197" class="m" text-anchor="middle">role · skills · need</text>
+<rect x="280" y="150" width="160" height="64" rx="32" class="st draft"/>
+<text x="360.0" y="178" class="t" text-anchor="middle">draft</text>
+<text x="360.0" y="197" class="m" text-anchor="middle">not public yet</text>
+<rect x="540" y="150" width="200" height="64" rx="32" class="st pending"/>
+<text x="640.0" y="178" class="t" text-anchor="middle">pending_review</text>
+<text x="640.0" y="197" class="m" text-anchor="middle">awaiting approval</text>
+<rect x="830" y="150" width="180" height="64" rx="32" class="st approved"/>
+<text x="920.0" y="178" class="t" text-anchor="middle">approved</text>
+<text x="920.0" y="197" class="m" text-anchor="middle">live on careers site</text>
+<rect x="1050" y="150" width="140" height="64" rx="32" class="st closed"/>
+<text x="1120.0" y="178" class="t" text-anchor="middle">closed</text>
+<text x="1120.0" y="197" class="m" text-anchor="middle">no new applicants</text>
+<path d="M190,182 L278,182" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="235" y="172" class="al" text-anchor="middle">Generate JD</text>
+<text x="235" y="202" class="al dim" text-anchor="middle">AI/template</text>
+<path d="M440,182 L538,182" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="489" y="172" class="al" text-anchor="middle">Submit</text>
+<path d="M740,182 L828,182" class="ln ok" marker-end="url(#a-ok)"/>
+<text x="785" y="172" class="al" text-anchor="middle">Approve</text>
+<text x="785" y="202" class="al dim" text-anchor="middle">&amp; publish</text>
+<path d="M1010,182 L1048,182" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="1030" y="172" class="al" text-anchor="middle">Close</text>
+<path d="M600,214 C600,282 380,282 380,216" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="490" y="296" class="al" text-anchor="middle">Send back + reviewer notes</text>
+<path d="M900,214 C900,282 700,282 700,216" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="800" y="296" class="al" text-anchor="middle">Edit text · regenerate · restore</text>
+<path d="M1120,214 C1120,372 645,372 645,216" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="890" y="368" class="al" text-anchor="middle">Reopen</text>
+<path d="M400,150 C430,60 890,60 915,148" class="ln ok" marker-end="url(#a-ok)"/>
+<text x="660" y="66" class="al" text-anchor="middle">Approve directly from draft</text>
+<path d="M305,150 C290,108 345,102 335,148" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="288" y="112" class="al dim" text-anchor="end">edit · regenerate</text>
+<text x="20" y="408" class="m" text-anchor="start">Approve needs: non-empty JD  +  “I&#x27;ve reviewed this JD” ticked  +  (maker-checker on) a different HR user</text>
+<text x="20" y="428" class="m" text-anchor="start">Every AI draft, HR edit and restore writes a JDRevision row · every action writes ActivityLog</text></svg></div>
+  </section>
+
+  <section class="fig" id="screening">
+    <div class="fig-head"><span class="fig-no">FIG 4</span><h2>Resume screening pipeline</h2></div>
+    <p class="fig-cap">Requirement 2: every application is scored the moment it is submitted. A deterministic keyword score and an AI score are blended, so no single model judgement decides a shortlist.</p>
+    <div class="fig-scroll"><svg viewBox="0 0 1180 470" role="img" aria-label="Resume screening pipeline" style="min-width:980px"><defs><marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ink"/></marker><marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ai"/></marker><marker id="a-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk cfg"/></marker><marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ok"/></marker></defs><rect x="20" y="20" width="255" height="82" rx="8" class="bx svc"/>
+<text x="34" y="44" class="t">1  Upload</text>
+<text x="34" y="64" class="m" xml:space="preserve">POST /me/apply/&lt;job_id&gt;</text>
+<text x="34" y="81" class="m" xml:space="preserve">resume + notice, CTC, note</text>
+<rect x="305" y="20" width="255" height="82" rx="8" class="bx svc"/>
+<text x="319" y="44" class="t">2  Validate</text>
+<text x="319" y="64" class="m" xml:space="preserve">PDF or DOCX · ≤ 5 MB</text>
+<text x="319" y="81" class="m" xml:space="preserve">job approved · one per job</text>
+<rect x="590" y="20" width="255" height="82" rx="8" class="bx svc"/>
+<text x="604" y="44" class="t">3  Store</text>
+<text x="604" y="64" class="m" xml:space="preserve">store_resume()</text>
+<text x="604" y="81" class="m" xml:space="preserve">instance/resumes/&lt;uuid&gt;</text>
+<rect x="875" y="20" width="255" height="82" rx="8" class="bx svc"/>
+<text x="889" y="44" class="t">4  Extract text</text>
+<text x="889" y="64" class="m" xml:space="preserve">resume_parser.extract_text()</text>
+<text x="889" y="81" class="m" xml:space="preserve">empty text → score 0, flag</text>
+<path d="M275,61 L303,61" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M560,61 L588,61" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M845,61 L873,61" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M1000,102 L1000,158" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M1000,128 L1160,128 L1160,336 L1132,336" class="ln ai" marker-end="url(#a-ai)"/>
+<rect x="780" y="160" width="350" height="112" rx="8" class="bx svc"/>
+<text x="794" y="184" class="t">5a  Keyword score  (always)</text>
+<text x="794" y="204" class="m" xml:space="preserve">scoring.keyword_score()</text>
+<text x="794" y="221" class="m" xml:space="preserve">60% must-have · 15% nice-to-have</text>
+<text x="794" y="238" class="m" xml:space="preserve">15% years · 10% embedding similarity</text>
+<text x="794" y="255" class="m" xml:space="preserve">skill aliases: PowerBI = Power BI …</text>
+<rect x="780" y="290" width="350" height="132" rx="8" class="bx ai"/>
+<text x="794" y="314" class="t">5b  AI score  (when a model is set)</text>
+<text x="794" y="334" class="m" xml:space="preserve">LangChain screening chain →</text>
+<text x="794" y="351" class="m" xml:space="preserve">Pydantic ScreeningResult: score,</text>
+<text x="794" y="368" class="m" xml:space="preserve">skills, years, strengths, gaps</text>
+<text x="794" y="385" class="m em" xml:space="preserve">ignores protected attributes and</text>
+<text x="794" y="402" class="m em" xml:space="preserve">instructions hidden in the resume</text>
+<rect x="400" y="200" width="300" height="160" rx="8" class="bx svc"/>
+<text x="414" y="224" class="t">6  Blend &amp; band</text>
+<text x="414" y="244" class="m" xml:space="preserve">final = 0.7 × AI + 0.3 × KW</text>
+<text x="414" y="260" class="m" xml:space="preserve">  (KW only in rules mode)</text>
+<text x="414" y="276" class="m" xml:space="preserve"></text>
+<text x="414" y="292" class="m" xml:space="preserve">≥ 80  Strong match</text>
+<text x="414" y="308" class="m" xml:space="preserve">≥ 65  Good match</text>
+<text x="414" y="324" class="m" xml:space="preserve">≥ 45  Partial match</text>
+<text x="414" y="340" class="m" xml:space="preserve"> &lt; 45  Not a match</text>
+<path d="M780,230 L702,250" class="ln ink" marker-end="url(#a-ink)"/>
+<path d="M780,350 L702,312" class="ln ai" marker-end="url(#a-ai)"/>
+<rect x="20" y="200" width="330" height="110" rx="8" class="bx svc"/>
+<text x="34" y="224" class="t">7  Auto-shortlist</text>
+<text x="34" y="244" class="m" xml:space="preserve">final ≥ job.shortlist_threshold (70)</text>
+<text x="34" y="261" class="m" xml:space="preserve">  → status shortlisted, auto flag</text>
+<text x="34" y="278" class="m" xml:space="preserve">else stays applied</text>
+<text x="34" y="295" class="m em" xml:space="preserve">manual HR decisions never overwritten</text>
+<path d="M400,250 L352,250" class="ln ink" marker-end="url(#a-ink)"/>
+<rect x="20" y="340" width="330" height="82" rx="8" class="bx client"/>
+<text x="34" y="364" class="t">8  HR decides</text>
+<text x="34" y="384" class="m" xml:space="preserve">ranked list · filters · review page</text>
+<text x="34" y="401" class="m" xml:space="preserve">stage: interview → offered → hired</text>
+<path d="M185,310 L185,338" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="20" y="456" class="m" text-anchor="start">All results persist on the Application row; “Re-screen all” reruns 5–7 after a JD edit.</text></svg></div>
+  </section>
+
+  <section class="fig" id="data-model">
+    <div class="fig-head"><span class="fig-no">FIG 5</span><h2>Data model</h2></div>
+    <p class="fig-cap">Five tables in <code>models.py</code>. Job holds both the requisition inputs and the approved JD; Application holds the resume text and every screening output so the ranked pipeline is a single query.</p>
+    <div class="fig-scroll"><svg viewBox="0 0 1200 525" role="img" aria-label="Data model" style="min-width:1000px"><defs><marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ink"/></marker><marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ai"/></marker><marker id="a-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk cfg"/></marker><marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk ok"/></marker></defs><rect x="20" y="50" width="240" height="213" rx="8" class="bx data"/>
+<path d="M20,84 L260,84" class="ln thin"/>
+<text x="34" y="73" class="t">User</text>
+<text x="34" y="102" class="m key">id</text>
+<text x="248" y="102" class="m dim" text-anchor="end">PK</text>
+<text x="34" y="121" class="m">name</text>
+<text x="248" y="121" class="m dim" text-anchor="end">str</text>
+<text x="34" y="140" class="m">email</text>
+<text x="248" y="140" class="m dim" text-anchor="end">unique</text>
+<text x="34" y="159" class="m">phone</text>
+<text x="248" y="159" class="m dim" text-anchor="end">str</text>
+<text x="34" y="178" class="m">password_hash</text>
+<text x="248" y="178" class="m dim" text-anchor="end">werkzeug</text>
+<text x="34" y="197" class="m">role</text>
+<text x="248" y="197" class="m dim" text-anchor="end">hr | candidate</text>
+<text x="34" y="216" class="m">is_admin</text>
+<text x="248" y="216" class="m dim" text-anchor="end">bool</text>
+<text x="34" y="235" class="m">active</text>
+<text x="248" y="235" class="m dim" text-anchor="end">bool</text>
+<text x="34" y="254" class="m">created_at</text>
+<text x="248" y="254" class="m dim" text-anchor="end">datetime</text>
+<rect x="330" y="50" width="300" height="384" rx="8" class="bx data"/>
+<path d="M330,84 L630,84" class="ln thin"/>
+<text x="344" y="73" class="t">Job</text>
+<text x="344" y="102" class="m key">id</text>
+<text x="618" y="102" class="m dim" text-anchor="end">PK</text>
+<text x="344" y="121" class="m">title · department · location</text>
+<text x="618" y="121" class="m dim" text-anchor="end">str</text>
+<text x="344" y="140" class="m">employment_type · work_mode</text>
+<text x="618" y="140" class="m dim" text-anchor="end">str</text>
+<text x="344" y="159" class="m">experience_min / _max</text>
+<text x="618" y="159" class="m dim" text-anchor="end">int</text>
+<text x="344" y="178" class="m">skills</text>
+<text x="618" y="178" class="m dim" text-anchor="end">must-have, csv</text>
+<text x="344" y="197" class="m">nice_to_have</text>
+<text x="618" y="197" class="m dim" text-anchor="end">csv</text>
+<text x="344" y="216" class="m">education · salary_range</text>
+<text x="618" y="216" class="m dim" text-anchor="end">str</text>
+<text x="344" y="235" class="m">openings · tone</text>
+<text x="618" y="235" class="m dim" text-anchor="end"></text>
+<text x="344" y="254" class="m">business_need</text>
+<text x="618" y="254" class="m dim" text-anchor="end">text</text>
+<text x="344" y="273" class="m">jd_text</text>
+<text x="618" y="273" class="m dim" text-anchor="end">markdown</text>
+<text x="344" y="292" class="m">jd_source</text>
+<text x="618" y="292" class="m dim" text-anchor="end">ai | template | manual</text>
+<text x="344" y="311" class="m">status</text>
+<text x="618" y="311" class="m dim" text-anchor="end">4 states</text>
+<text x="344" y="330" class="m">shortlist_threshold</text>
+<text x="618" y="330" class="m dim" text-anchor="end">int %</text>
+<text x="344" y="349" class="m">review_notes</text>
+<text x="618" y="349" class="m dim" text-anchor="end">text</text>
+<text x="344" y="368" class="m key">created_by_id</text>
+<text x="618" y="368" class="m dim" text-anchor="end">FK User</text>
+<text x="344" y="387" class="m key">last_edited_by_id</text>
+<text x="618" y="387" class="m dim" text-anchor="end">FK User</text>
+<text x="344" y="406" class="m key">approved_by_id</text>
+<text x="618" y="406" class="m dim" text-anchor="end">FK User</text>
+<text x="344" y="425" class="m">approved_at · timestamps</text>
+<text x="618" y="425" class="m dim" text-anchor="end">datetime</text>
+<rect x="690" y="50" width="300" height="422" rx="8" class="bx data"/>
+<path d="M690,84 L990,84" class="ln thin"/>
+<text x="704" y="73" class="t">Application</text>
+<text x="704" y="102" class="m key">id</text>
+<text x="978" y="102" class="m dim" text-anchor="end">PK</text>
+<text x="704" y="121" class="m key">job_id</text>
+<text x="978" y="121" class="m dim" text-anchor="end">FK Job</text>
+<text x="704" y="140" class="m key">candidate_id</text>
+<text x="978" y="140" class="m dim" text-anchor="end">FK User</text>
+<text x="704" y="159" class="m">(job_id, candidate_id)</text>
+<text x="978" y="159" class="m dim" text-anchor="end">unique</text>
+<text x="704" y="178" class="m">resume_filename · resume_path</text>
+<text x="978" y="178" class="m dim" text-anchor="end">str</text>
+<text x="704" y="197" class="m">resume_text</text>
+<text x="978" y="197" class="m dim" text-anchor="end">text</text>
+<text x="704" y="216" class="m">cover_note · current_ctc</text>
+<text x="978" y="216" class="m dim" text-anchor="end"></text>
+<text x="704" y="235" class="m">notice_period · linkedin</text>
+<text x="978" y="235" class="m dim" text-anchor="end"></text>
+<text x="704" y="254" class="m">score_ai · score_keyword</text>
+<text x="978" y="254" class="m dim" text-anchor="end">float</text>
+<text x="704" y="273" class="m">score_final</text>
+<text x="978" y="273" class="m dim" text-anchor="end">float, indexed</text>
+<text x="704" y="292" class="m">years_experience</text>
+<text x="978" y="292" class="m dim" text-anchor="end">float</text>
+<text x="704" y="311" class="m">matched / missing_skills</text>
+<text x="978" y="311" class="m dim" text-anchor="end">json</text>
+<text x="704" y="330" class="m">strengths / gaps</text>
+<text x="978" y="330" class="m dim" text-anchor="end">json</text>
+<text x="704" y="349" class="m">summary · recommendation</text>
+<text x="978" y="349" class="m dim" text-anchor="end">text</text>
+<text x="704" y="368" class="m">scorer · screening_error</text>
+<text x="978" y="368" class="m dim" text-anchor="end">str</text>
+<text x="704" y="387" class="m">screened_at</text>
+<text x="978" y="387" class="m dim" text-anchor="end">datetime</text>
+<text x="704" y="406" class="m">auto_shortlisted</text>
+<text x="978" y="406" class="m dim" text-anchor="end">bool</text>
+<text x="704" y="425" class="m">status</text>
+<text x="978" y="425" class="m dim" text-anchor="end">6 stages</text>
+<text x="704" y="444" class="m">hr_notes</text>
+<text x="978" y="444" class="m dim" text-anchor="end">text</text>
+<text x="704" y="463" class="m">applied_at · updated_at</text>
+<text x="978" y="463" class="m dim" text-anchor="end">datetime</text>
+<rect x="20" y="330" width="240" height="175" rx="8" class="bx data"/>
+<path d="M20,364 L260,364" class="ln thin"/>
+<text x="34" y="353" class="t">JDRevision</text>
+<text x="34" y="382" class="m key">id</text>
+<text x="248" y="382" class="m dim" text-anchor="end">PK</text>
+<text x="34" y="401" class="m key">job_id</text>
+<text x="248" y="401" class="m dim" text-anchor="end">FK Job</text>
+<text x="34" y="420" class="m">text</text>
+<text x="248" y="420" class="m dim" text-anchor="end">markdown</text>
+<text x="34" y="439" class="m">source</text>
+<text x="248" y="439" class="m dim" text-anchor="end">ai|template|hr_edit</text>
+<text x="34" y="458" class="m">note</text>
+<text x="248" y="458" class="m dim" text-anchor="end">str</text>
+<text x="34" y="477" class="m key">created_by_id</text>
+<text x="248" y="477" class="m dim" text-anchor="end">FK User</text>
+<text x="34" y="496" class="m">created_at</text>
+<text x="248" y="496" class="m dim" text-anchor="end">datetime</text>
+<rect x="1010" y="50" width="175" height="156" rx="8" class="bx data"/>
+<path d="M1010,84 L1185,84" class="ln thin"/>
+<text x="1024" y="73" class="t">ActivityLog</text>
+<text x="1024" y="102" class="m key">id</text>
+<text x="1173" y="102" class="m dim" text-anchor="end">PK</text>
+<text x="1024" y="121" class="m key">user_id</text>
+<text x="1173" y="121" class="m dim" text-anchor="end">FK</text>
+<text x="1024" y="140" class="m key">job_id</text>
+<text x="1173" y="140" class="m dim" text-anchor="end">FK</text>
+<text x="1024" y="159" class="m key">application_id</text>
+<text x="1173" y="159" class="m dim" text-anchor="end">FK</text>
+<text x="1024" y="178" class="m">action</text>
+<text x="1173" y="178" class="m dim" text-anchor="end">str</text>
+<text x="1024" y="197" class="m">created_at</text>
+<text x="1173" y="197" class="m dim" text-anchor="end">idx</text>
+<path d="M260,120 L328,120" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="294" y="112" class="al" text-anchor="middle">1 : N</text>
+<text x="294" y="140" class="al dim" text-anchor="middle">creates,</text>
+<text x="294" y="153" class="al dim" text-anchor="middle">edits,</text>
+<text x="294" y="166" class="al dim" text-anchor="middle">approves</text>
+<path d="M630,120 L688,120" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="659" y="112" class="al" text-anchor="middle">1 : N</text>
+<path d="M145,50 L145,24 L840,24 L840,48" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="490" y="18" class="al" text-anchor="middle">User 1 : N Application  (candidate applies once per job)</text>
+<path d="M330,420 L262,420" class="ln ink" marker-end="url(#a-ink)"/>
+<text x="296" y="412" class="al" text-anchor="middle">1 : N</text>
+<path d="M990,120 L1008,120" class="ln cfg" stroke-dasharray="6 5" marker-end="url(#a-cfg)"/>
+<text x="1097" y="236" class="al dim" text-anchor="middle">audit trail of</text>
+<text x="1097" y="250" class="al dim" text-anchor="middle">JD + candidate</text>
+<text x="1097" y="264" class="al dim" text-anchor="middle">actions</text></svg></div>
+  </section>
+
+  <section class="fig" id="routes">
+    <div class="fig-head"><span class="fig-no">TABLE 1</span><h2>Route map</h2></div>
+    <p class="fig-cap">Every endpoint, who can reach it, and what it does.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Method</th><th>Path</th><th>Access</th><th>Purpose</th></tr></thead>
+      <tbody><tr><td><span class='verb'>GET</span></td><td><code>/</code></td><td>Public</td><td>Careers home, latest openings</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/jobs</code></td><td>Public</td><td>Search and filter published roles</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/jobs/&lt;id&gt;</code></td><td>Public · HR preview</td><td>Job page with rendered JD</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/login · /register</code></td><td>Public</td><td>Sign in; candidates self-register</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/logout</code></td><td>Signed in</td><td>End session</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/account</code></td><td>Signed in</td><td>Change password</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/me/apply/&lt;job_id&gt;</code></td><td>Candidate</td><td>Upload resume, screened on submit</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/me/applications</code></td><td>Candidate</td><td>Status of every application</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/me/applications/&lt;id&gt;/withdraw</code></td><td>Candidate (owner)</td><td>Withdraw before offer</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/me/resume/&lt;id&gt;</code></td><td>Owner or HR</td><td>View or download resume</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/hr/</code></td><td>HR</td><td>KPIs, JDs to review, top candidates, activity</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/hr/jobs</code></td><td>HR</td><td>All requisitions by status</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/hr/jobs/new · /hr/jobs/&lt;id&gt;/edit</code></td><td>HR</td><td>Requisition form; generate or regenerate JD</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/hr/jobs/&lt;id&gt;</code></td><td>HR</td><td>JD editor, preview, approval, versions</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/hr/jobs/&lt;id&gt;/action</code></td><td>HR</td><td>save · submit · approve · send_back · regenerate · close · reopen · threshold · delete</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/hr/jobs/&lt;id&gt;/revision/&lt;rev&gt;/restore</code></td><td>HR</td><td>Restore an earlier JD version</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/hr/preview</code></td><td>HR</td><td>Markdown preview (sanitised)</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/hr/jobs/&lt;id&gt;/candidates</code></td><td>HR</td><td>Ranked pipeline, stage and score filters</td></tr>
+<tr><td><span class='verb'>POST</span></td><td><code>/hr/jobs/&lt;id&gt;/rescreen</code></td><td>HR</td><td>Re-score all applications</td></tr>
+<tr><td><span class='verb'>GET</span></td><td><code>/hr/jobs/&lt;id&gt;/export.csv</code></td><td>HR</td><td>Ranked candidates as CSV</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/hr/applications/&lt;id&gt;[/update]</code></td><td>HR</td><td>Candidate review, stage, notes, re-screen</td></tr>
+<tr><td><span class='verb'>GET POST</span></td><td><code>/hr/team</code></td><td>HR (admin to edit)</td><td>Add or deactivate HR users</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="fig" id="deployment">
+    <div class="fig-head"><span class="fig-no">TABLE 2</span><h2>Deployment options</h2></div>
+    <p class="fig-cap">Same code in every environment; only environment variables and storage change.</p>
+    <div class="cols">
+      <div class="dep"><h3>Local / pilot</h3><div class="tag">python app.py</div>
+        <ul><li>Flask dev server on port 5000</li><li>SQLite file in <code>instance/</code></li><li>Resumes on local disk</li><li>HF token for the API, or <code>huggingface_local</code> to run a free model on the machine (<code>requirements-local.txt</code>)</li></ul>
+        <pre>pip install -r requirements.txt
+flask --app app ai-check
+flask --app app seed-demo
+python app.py</pre></div>
+      <div class="dep"><h3>Docker</h3><div class="tag">Dockerfile · gunicorn, 2 workers</div>
+        <ul><li>python:3.12-slim image</li><li>Mount <code>/app/instance</code> as a volume for DB and resumes</li><li>Settings from <code>--env-file .env</code></li></ul>
+        <pre>docker build -t talentflow .
+docker run -p 8000:8000 --env-file .env \
+  -v $PWD/instance:/app/instance talentflow</pre></div>
+      <div class="dep"><h3>Render / PaaS</h3><div class="tag">Procfile · managed PostgreSQL</div>
+        <ul><li>Set <code>DATABASE_URL</code> to Postgres; add <code>psycopg2-binary</code></li><li>Persistent disk for resumes, or swap <code>store_resume()</code> to S3 / Azure Blob</li><li><code>SECRET_KEY</code>, <code>HUGGINGFACEHUB_API_TOKEN</code>, <code>LANGSMITH_API_KEY</code>, admin credentials as env vars</li></ul></div>
+    </div>
+  </section>
+
+  <section class="fig" id="security">
+    <div class="fig-head"><span class="fig-no">TABLE 3</span><h2>Security and governance controls</h2></div>
+    <dl class="sec"><div class='sec-item'><dt>Authentication</dt><dd>Werkzeug password hashing, Flask-Login sessions, inactive users blocked at login.</dd></div>
+<div class='sec-item'><dt>Authorisation</dt><dd>hr_required and candidate_required guards on every view; resumes served only to HR or their owner; safe redirect targets.</dd></div>
+<div class='sec-item'><dt>Forms</dt><dd>CSRF token on every POST via Flask-WTF, including the markdown preview call.</dd></div>
+<div class='sec-item'><dt>Uploads</dt><dd>PDF or DOCX only, 5 MB cap (413 handler), stored under random UUID names outside /static.</dd></div>
+<div class='sec-item'><dt>AI output</dt><dd>JD markdown rendered through nh3 with a tag allow-list, never as raw HTML.</dd></div>
+<div class='sec-item'><dt>AI input</dt><dd>Resume wrapped as untrusted data; the prompt tells the model to ignore embedded instructions and protected attributes.</dd></div>
+<div class='sec-item'><dt>Governance</dt><dd>Human approval of every JD, optional maker-checker, JDRevision history and ActivityLog for every action.</dd></div></dl>
+  </section>
+</div>

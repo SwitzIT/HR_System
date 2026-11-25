@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  {% if job %}
+  <div class="apply-context">
+    <span class="muted">You're applying for</span>
+    <b>{{ job.title }}</b>{% if job.location %} <span class="muted">· {{ job.location }}</span>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card card-b" style="padding:28px">
+    <div class="step-tag">Already registered?</div>
+    <h1 style="margin-top:4px">Sign in</h1>
+    <p class="muted">If you've applied with us before or already have an account, sign in with your email and password.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label for="email">Email</label><input type="email" name="email" id="email" required autofocus value="{{ request.form.email }}"></div>
+      <div class="field"><label for="password">Password</label><input type="password" name="password" id="password" required></div>
+      <label class="check field"><input type="checkbox" name="remember"> Keep me signed in</label>
+      <button class="btn btn-primary btn-lg" style="width:100%">Sign in{{ ' and continue' if job }}</button>
+    </form>
+  </div>
+
+  <div class="or-divider"><span>or</span></div>
+
+  <div class="card card-b new-user" style="padding:24px 28px">
+    <div class="step-tag">New candidate?</div>
+    <h2 style="margin:4px 0 6px">Create a new account</h2>
+    <p class="muted" style="margin-bottom:16px">First time applying to {{ COMPANY }}? Create your account in a minute{{ ' and continue with your application' if job }}. You'll need your PAN card or passport.</p>
+    <a class="btn btn-lg" style="width:100%" href="{{ url_for('auth.register', next=next) }}">Create a new account</a>
+  </div>
+
+  <p class="muted" style="text-align:center;margin-top:16px;font-size:13px">HR team members sign in above with the account given to you by your HR admin.</p>
+</div>
+{% endblock %}

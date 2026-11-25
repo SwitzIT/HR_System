@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status %}
+{% block title %}My applications{% endblock %}
+{% block content %}
+<div class="page-head" style="margin-top:28px">
+  <div><h1>My applications</h1><p>Hi {{ current_user.name.split(' ')[0] }}, here's where each application stands. <span class="muted">· ID on file: {{ current_user.id_masked }}</span></p></div>
+  <a class="btn btn-primary" href="{{ url_for('public.jobs') }}">Browse roles</a>
+</div>
+{% if apps %}
+<div class="card table-wrap">
+<table class="t">
+  <thead><tr><th>Role</th><th>Applied</th><th>Resume</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for a in apps %}
+  <tr>
+    <td class="who"><b><a href="{{ url_for('public.job_detail', job_id=a.job.id) }}" style="color:var(--ink)">{{ a.job.title }}</a></b><small>{{ a.job.department or '' }}{% if a.job.location %} · {{ a.job.location }}{% endif %}{% if a.job.status == 'closed' %} · role closed{% endif %}</small></td>
+    <td>{{ a.applied_at|dt }}</td>
+    <td><a href="{{ url_for('candidate.resume', app_id=a.id) }}" target="_blank">{{ a.resume_filename }}</a></td>
+    <td>{% set vs = a.visible_status %}{{ status(vs, a.candidate_status) }}{% if vs == 'pending' %}<br><small class="muted">Our Talent team will update this after reviewing your application</small>{% elif vs in ('rejected','withdrawn') and a.visible_decided_at and a.visible_decided_at + timedelta(days=cooldown_days) > now() %}<br><small class="muted">You can apply again from {{ (a.visible_decided_at + timedelta(days=cooldown_days))|dt }}</small>{% endif %}</td>
+    <td class="num">
+      {% if a.visible_status not in ('offered','hired','withdrawn','rejected') %}
+      <form method="post" action="{{ url_for('candidate.withdraw', app_id=a.id) }}" onsubmit="return confirm('Withdraw this application?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger">Withdraw</button>
+      </form>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="card empty">You haven't applied yet. <a href="{{ url_for('public.jobs') }}">See open roles →</a></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Open roles{% endblock %}
+{% block content %}
+<div class="page-head" style="margin-top:28px">
+  <div><h1>Open roles</h1><p>{{ jobs|length }} position{{ '' if jobs|length == 1 else 's' }}{% if q or dept or loc %} matching your filters{% endif %}</p></div>
+</div>
+<form class="row" style="margin-bottom:20px" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="Title or skill" style="max-width:300px">
+  <select name="dept" style="max-width:200px"><option value="">All departments</option>{% for d in depts %}<option {{ 'selected' if d == dept }}>{{ d }}</option>{% endfor %}</select>
+  <select name="loc" style="max-width:200px"><option value="">All locations</option>{% for l in locs %}<option {{ 'selected' if l == loc }}>{{ l }}</option>{% endfor %}</select>
+  <button class="btn">Filter</button>
+  {% if q or dept or loc %}<a href="{{ url_for('public.jobs') }}" class="muted">Clear</a>{% endif %}
+</form>
+{% if jobs %}
+<div class="grid g2">{% for j in jobs %}{% include "public/_job_card.html" %}{% endfor %}</div>
+{% else %}<div class="card empty">No roles match. Try a different search.</div>{% endif %}
+{% endblock %}

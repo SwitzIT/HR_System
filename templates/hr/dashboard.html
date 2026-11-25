@@ -1,0 +1,73 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import score, status %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Good to see you, {{ current_user.name.split(' ')[0] }}</h1><p>Requisitions, JD approvals and screening at a glance.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('hr.job_new') }}">+ New requisition</a>
+</div>
+
+{% if unposted %}
+<div class="post-bar">
+  <div><b>{{ unposted.values()|sum }}</b> candidate status{{ '' if unposted.values()|sum == 1 else 'es' }} waiting to be posted. Candidates see <i>Pending</i> until you post.</div>
+  <div class="row" style="gap:6px">{% for j in unposted_jobs %}<a class="btn btn-sm" href="{{ url_for('hr.pipeline', job_id=j.id, posting='unposted') }}">{{ j.title }} · {{ unposted[j.id] }}</a>{% endfor %}</div>
+</div>
+{% endif %}
+{% if in_queue %}<div class="flash info screening-wait" data-autorefresh="30" style="margin-bottom:14px"><span class="spinner"></span><b>{{ in_queue }}</b> resume{{ '' if in_queue == 1 else 's' }} in the AI screening queue.</div>{% endif %}
+<div class="grid g4" style="margin-bottom:20px">
+  <div class="card kpi"><div class="n">{{ stats.open }}</div><div class="l">Open (published) roles</div></div>
+  <div class="card kpi"><div class="n" style="color:{{ 'var(--warn)' if stats.review else 'inherit' }}">{{ stats.review }}</div><div class="l">JDs awaiting review</div></div>
+  <div class="card kpi"><div class="n">{{ stats.apps30 }}</div><div class="l">Applications · last 30 days</div></div>
+  <div class="card kpi"><div class="n">{{ stats.shortlisted }}</div><div class="l">Shortlisted / interviewing</div></div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h3>Top candidates to review</h3><span class="muted" style="font-size:13px">Across open roles, by match score</span></div>
+      {% if top %}
+      <div class="table-wrap"><table class="t">
+        <thead><tr><th>Candidate</th><th>Role</th><th class="num">Match</th><th>Status</th></tr></thead>
+        <tbody>{% for a in top %}
+        <tr onclick="location.href='{{ url_for('hr.application', app_id=a.id) }}'" style="cursor:pointer">
+          <td class="who"><b>{{ a.candidate.name }}</b><small>{{ a.recommendation }}</small></td>
+          <td>{{ a.job.title }}</td><td class="num">{{ score(a.score_final) }}</td><td>{{ status(a.status) }}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<div class="empty">No applications yet.</div>{% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Open roles</h3><a href="{{ url_for('hr.jobs') }}" style="font-size:13px">All jobs →</a></div>
+      {% if jobs %}
+      <div class="table-wrap"><table class="t"><tbody>{% for j in jobs %}
+        <tr><td class="who"><b>{{ j.title }}</b><small>{{ j.department or '' }} · published {{ j.approved_at|dt }}</small></td>
+        <td class="num">{{ counts.get(j.id, 0) }} applicants</td>
+        <td class="num"><a class="btn btn-sm" href="{{ url_for('hr.pipeline', job_id=j.id) }}">Candidates</a></td></tr>
+      {% endfor %}</tbody></table></div>
+      {% else %}<div class="empty">No published roles yet.</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h3 class="needs-review">Needs your review{% if to_review %} <span class="count-pill">{{ to_review|length }}</span>{% endif %}</h3></div>
+      {% if to_review %}<div class="card-b" style="padding:8px 20px">
+        {% for j in to_review %}
+        <div class="row between" style="padding:10px 0;{{ 'border-top:1px solid var(--line)' if not loop.first }}">
+          <div><a href="{{ url_for('hr.job_review', job_id=j.id) }}" style="font-weight:600;color:var(--ink)">{{ j.title }}</a><br><small class="muted">{{ j.jd_source or 'manual' }} draft · {{ j.updated_at|dt }}</small></div>
+          {{ status(j.status) }}
+        </div>{% endfor %}
+      </div>{% else %}<div class="empty">All caught up.</div>{% endif %}
+    </div>
+    {% if current_user.is_admin %}
+    <div class="card">
+      <div class="card-h"><h3>Recent activity</h3></div>
+      <div class="card-b">{% if activity %}<ul class="timeline">{% for e in activity %}
+        <li>{{ e.action }}{% if e.job %} · <span class="muted">{{ e.job.title }}</span>{% endif %}<br><small>{{ e.user.name if e.user else 'System' }} · {{ e.created_at|dt('%d %b, %H:%M') }}</small></li>
+      {% endfor %}</ul>{% else %}<span class="muted">Nothing yet.</span>{% endif %}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% from "_macros.html" import icon %}
+<a class="card job-card" href="{{ url_for('public.job_detail', job_id=j.id) }}">
+  <div class="job-dept">{{ j.department or 'General' }}</div>
+  <h3>{{ j.title }}</h3>
+  <div class="meta">
+    {% if j.location %}<span>{{ icon('pin') }}{{ j.location }}</span>{% endif %}
+    <span>{{ icon('brief') }}{{ j.employment_label if j.employment_label is defined else j.employment_type }} · {{ j.work_mode }}</span>
+    <span>{{ icon('clock') }}{{ j.experience_label }}</span>
+  </div>
+  <div class="job-skills">{% for s in j.skill_list[:4] %}<span class="chip">{{ s }}</span>{% endfor %}</div>
+  <span class="know-more">View role</span>
+</a>

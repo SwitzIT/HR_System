@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Confirm your identity{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="card card-b" style="padding:28px">
+    <h1>One more step</h1>
+    <p class="muted">Add your PAN or passport before applying. Each person can hold one account.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      {% include "_id_fields.html" %}
+      <button class="btn btn-primary btn-lg" style="width:100%">Save and continue</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

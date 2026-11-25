@@ -1,0 +1,29 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import status as badge %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Jobs & candidates</h1><p>Every requisition, its JD approval state and its applicant pipeline.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('hr.job_new') }}">+ New requisition</a>
+</div>
+<div class="tabs">
+  {% for s, l in [('', 'All'), ('draft','Draft'), ('pending_review','Pending review'), ('approved','Published'), ('closed','Closed')] %}
+  <a href="{{ url_for('hr.jobs', status=s) if s else url_for('hr.jobs') }}" class="{{ 'on' if status == s }}">{{ l }}</a>
+  {% endfor %}
+</div>
+{% if jobs %}
+<div class="card table-wrap"><table class="t">
+  <thead><tr><th>Role</th><th>JD</th><th>Status</th><th class="num">Applicants</th><th class="num">Shortlisted+</th><th class="num">Threshold</th><th></th></tr></thead>
+  <tbody>{% for j in jobs %}
+  <tr>
+    <td class="who"><b><a href="{{ url_for('hr.job_review', job_id=j.id) }}" style="color:var(--ink)">{{ j.title }}</a></b><small>{{ j.department or '—' }} · {{ j.location or '—' }} · {{ j.experience_label }}</small></td>
+    <td><small class="muted">{{ {'ai':'AI-generated','template':'Template','manual':'Written by HR'}.get(j.jd_source, '—') }}{% if j.approved_by %}<br>Approved by {{ j.approved_by.name }}{% endif %}</small></td>
+    <td>{{ badge(j.status) }}{% if j.status == 'approved' and j.is_internal_only %} <span class="badge b-internal">Internal only</span>{% endif %}</td>
+    <td class="num">{{ counts.get(j.id, 0) }}</td>
+    <td class="num">{{ short.get(j.id, 0) }}</td>
+    <td class="num">{{ j.shortlist_threshold }}%</td>
+    <td class="num" style="white-space:nowrap"><a class="btn btn-sm" href="{{ url_for('hr.job_review', job_id=j.id) }}">JD</a> <a class="btn btn-sm" href="{{ url_for('hr.pipeline', job_id=j.id) }}">Candidates</a></td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<div class="card empty">No jobs here yet. <a href="{{ url_for('hr.job_new') }}">Create a requisition →</a></div>{% endif %}
+{% endblock %}

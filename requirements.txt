@@ -1,0 +1,28 @@
+# Web app
+flask>=3.0
+flask-sqlalchemy>=3.1
+flask-login>=0.6
+flask-wtf>=1.2
+pypdf>=4.0
+python-docx>=1.1
+markdown>=3.5
+nh3>=0.2
+python-dotenv>=1.0
+gunicorn>=22.0 ; platform_system != "Windows"   # Linux/Docker hosting
+waitress>=3.0                    # production server, works on Windows (python app.py)
+requests>=2.31                   # Microsoft Graph email
+# psycopg2-binary>=2.9          # when DATABASE_URL points to PostgreSQL
+
+# AI layer: LangChain + Hugging Face (API mode)
+langchain>=1.0
+langchain-core>=1.0
+langchain-huggingface>=1.0
+huggingface_hub>=0.30
+langsmith>=0.3                   # tracing; active only when LANGSMITH_API_KEY is set
+
+# Paid providers: install only the one you switch to
+# langchain-openai               # LLM_PROVIDER=openai
+# langchain-anthropic            # LLM_PROVIDER=anthropic
+# langchain-google-genai         # LLM_PROVIDER=google_genai
+# langchain-groq                 # LLM_PROVIDER=groq
+# langchain-ollama               # LLM_PROVIDER=ollama

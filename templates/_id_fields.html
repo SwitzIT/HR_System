@@ -1,0 +1,24 @@
+{# PAN / passport fields, shared by sign-up and the ID step. Expects `form` (request.form or {}). #}
+<div class="form-sec" style="margin-top:6px">Identity</div>
+<div class="grid g2">
+  <div class="field">
+    <label for="id_type">ID type</label>
+    <select name="id_type" id="id_type" required onchange="document.getElementById('countryField').hidden = this.value !== 'passport'">
+      <option value="pan" {{ 'selected' if form.get('id_type', 'pan') == 'pan' }}>PAN card</option>
+      <option value="passport" {{ 'selected' if form.get('id_type') == 'passport' }}>Passport</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="id_number">ID number</label>
+    <input type="text" name="id_number" id="id_number" required autocomplete="off" maxlength="20"
+           style="text-transform:uppercase" placeholder="e.g. ABCPE1234F">
+  </div>
+</div>
+<div class="field" id="countryField" {{ '' if form.get('id_type') == 'passport' else 'hidden' }}>
+  <label for="id_country">Passport issuing country</label>
+  <input type="text" name="id_country" id="id_country" value="{{ form.get('id_country', '') }}" placeholder="e.g. India, Sri Lanka">
+</div>
+<p class="hint" style="margin:-6px 0 12px">We don't store your full ID number. We keep a one-way code to recognise you if you apply
+  again, plus the last 4 characters so HR can confirm it with you. Candidates who aren't selected can apply again after {{ config.REAPPLY_COOLDOWN_DAYS }} days.</p>
+<label class="check field"><input type="checkbox" name="id_consent" value="1" {{ 'checked' if form.get('id_consent') }}>
+  <span>I agree that {{ COMPANY }} may store this information to manage my applications and the re-application policy.</span></label>

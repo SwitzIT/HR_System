@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Apply · {{ job.title }}{% endblock %}
+{% block content %}
+<div class="crumbs" style="margin-top:24px"><a href="{{ url_for('public.job_detail', job_id=job.id) }}">{{ job.title }}</a> / Apply</div>
+<div class="split">
+  <div class="card card-b" style="padding:28px">
+    <h1>Apply for {{ job.title }}</h1>
+    <p class="muted">Applying as <b>{{ current_user.name }}</b> ({{ current_user.email }})</p>
+    <form method="post" enctype="multipart/form-data" id="applyForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label>Resume <span class="hint">PDF or DOCX, max 5 MB. Text-based files work best; scanned images can't be read.</span></label>
+        <input type="file" name="resume" accept=".pdf,.docx" required>
+      </div>
+      <div class="grid g2">
+        <div class="field"><label>Phone</label><input type="text" name="phone" value="{{ current_user.phone or '' }}"></div>
+        <div class="field"><label>LinkedIn <span class="hint">optional</span></label><input type="url" name="linkedin" placeholder="https://linkedin.com/in/…"></div>
+        <div class="field"><label>Notice period</label><select name="notice_period"><option>Immediate</option><option>15 days</option><option selected>30 days</option><option>60 days</option><option>90 days</option></select></div>
+        <div class="field"><label>Current CTC <span class="hint">optional</span></label><input type="text" name="current_ctc"></div>
+      </div>
+      <div class="field"><label>Why are you a good fit? <span class="hint">optional</span></label><textarea name="cover_note" rows="5" maxlength="3000"></textarea></div>
+      <button class="btn btn-primary btn-lg" id="submitBtn">Submit application</button>
+    </form>
+  </div>
+  <aside class="card card-b sticky">
+    <h3>What happens next</h3>
+    <ol class="steps" style="margin-top:14px">
+      <li>Your resume is matched to this role's requirements.</li>
+      <li>Our Talent team reviews the shortlist.</li>
+      <li>You'll see status updates on <i>My applications</i>.</li>
+    </ol>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+document.getElementById('applyForm').addEventListener('submit',()=>{const b=document.getElementById('submitBtn');b.disabled=true;b.textContent='Submitting…';});
+</script>{% endblock %}

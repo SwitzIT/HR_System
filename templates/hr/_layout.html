@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block body %}
+<div class="shell">
+  <aside class="side">
+    <div class="sec">Talent Acquisition</div>
+    <a href="{{ url_for('hr.dashboard') }}" class="{{ 'active' if request.endpoint == 'hr.dashboard' }}">{{ icon('grid') }} Dashboard</a>
+    <a href="{{ url_for('hr.job_new') }}" class="{{ 'active' if request.endpoint == 'hr.job_new' }}">{{ icon('spark') }} New JD (AI)</a>
+    <a href="{{ url_for('hr.jobs') }}" class="{{ 'active' if request.endpoint in ('hr.jobs','hr.job_review','hr.job_edit','hr.pipeline','hr.application') }}">{{ icon('doc') }} Jobs & candidates</a>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('hr.decisions') }}" class="{{ 'active' if request.endpoint == 'hr.decisions' }}">{{ icon('users') }} Decision log</a>
+    <div class="sec">Admin</div>
+    <a href="{{ url_for('hr.team') }}" class="{{ 'active' if request.endpoint == 'hr.team' }}">{{ icon('users') }} HR team</a>
+    <a href="{{ url_for('public.jobs') }}" target="_blank">{{ icon('globe') }} Careers site</a>
+    <div style="margin:18px 12px 0">
+      <span class="ai-pill {{ '' if AI_ON else 'off' }}" title="{{ 'LangChain model in use' if AI_ON else 'Set LLM_PROVIDER, LLM_MODEL and the API key in .env to enable AI' }}">{{ icon('spark') }} {{ AI_MODEL if AI_ON else 'AI off · rules mode' }}</span>
+    </div>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% include "_flashes.html" %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

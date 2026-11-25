@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Careers{% endblock %}
+{% block hero %}
+<section class="hero-band">
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      <span class="eyebrow">Careers at {{ COMPANY }}</span>
+      <h1>Grow with {{ COMPANY }}.</h1>
+      <p class="lead">Find a role that fits, apply in two minutes with your resume, and follow every step of your application in one place.</p>
+      <form class="search" action="{{ url_for('public.jobs') }}">
+        <input type="search" name="q" placeholder="Search by title or skill, e.g. Sales, Data Analyst" aria-label="Search roles">
+        <button class="btn btn-primary">Search roles</button>
+      </form>
+      <p class="hero-count"><b>{{ total }}</b> open role{{ '' if total == 1 else 's' }}</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+      <div class="hero-card"><span class="dot"></span><div><b>Application received</b><small>We'll review it against the role's requirements</small></div></div>
+      <div class="hero-card c2"><span class="dot ok"></span><div><b>Shortlisted</b><small>Our Talent team will be in touch</small></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="icon-row-wrap">
+  <div class="container icon-row">
+    <div class="icon-tile">{{ icon('users') }}<b>Create an account</b><span>One profile for every application</span></div>
+    <div class="icon-tile">{{ icon('doc') }}<b>Upload your resume</b><span>PDF or Word, read in full</span></div>
+    <div class="icon-tile">{{ icon('spark') }}<b>Fair screening</b><span>Skills and experience only</span></div>
+    <div class="icon-tile">{{ icon('clock') }}<b>Track your status</b><span>See every step as it happens</span></div>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="section-head">
+    <div><span class="eyebrow">Open positions</span><h2>Latest openings</h2></div>
+    <a href="{{ url_for('public.jobs') }}" class="know-more">All roles</a>
+  </div>
+  {% if jobs %}
+  <div class="grid g3">{% for j in jobs %}{% include "public/_job_card.html" %}{% endfor %}</div>
+  {% else %}
+  <div class="card empty">No open roles right now. Create an account and check back soon.</div>
+  {% endif %}
+</section>
+
+<section class="section split-band">
+  <div>
+    <span class="eyebrow">How we hire</span>
+    <h2>Fair, skills-first screening</h2>
+    <p class="muted">Every application is compared against the job's published requirements: skills, experience and outcomes. Screening ignores personal attributes, and every shortlist is reviewed by a member of our Talent team before anyone is contacted.</p>
+  </div>
+  <ol class="steps">
+    <li><b>Apply</b><br><span class="muted">Create an account and upload your resume.</span></li>
+    <li><b>Review</b><br><span class="muted">Your experience is matched to the role's requirements.</span></li>
+    <li><b>Hear back</b><br><span class="muted">Track your status any time under My applications.</span></li>
+  </ol>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "hr/_layout.html" %}
+{% block title %}HR team{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>HR team</h1><p>HR accounts are invite-only. {{ n_candidates }} candidate account{{ '' if n_candidates == 1 else 's' }} registered.</p></div></div>
+<div class="split">
+  <div class="card table-wrap"><table class="t">
+    <thead><tr><th>Name</th><th>Role</th><th>Since</th><th>Status</th>{% if current_user.is_admin %}<th></th>{% endif %}</tr></thead>
+    <tbody>{% for u in users %}
+      <tr><td class="who"><b>{{ u.name }}</b><small>{{ u.email }}</small></td>
+      <td>{{ 'Admin' if u.is_admin else 'Recruiter' }}</td><td>{{ u.created_at|dt }}</td>
+      <td><span class="badge {{ 'b-approved' if u.active else 'b-closed' }}">{{ 'Active' if u.active else 'Inactive' }}</span></td>
+      {% if current_user.is_admin %}<td class="num">{% if u.id != current_user.id %}
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><input type="hidden" name="user_id" value="{{ u.id }}">
+        <button class="btn btn-sm">{{ 'Deactivate' if u.active else 'Activate' }}</button></form>{% endif %}</td>{% endif %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% if current_user.is_admin %}
+  <div class="card card-b">
+    <h3>Add HR user</h3>
+    <form method="post" style="margin-top:12px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label>Name</label><input type="text" name="name" required></div>
+      <div class="field"><label>Work email</label><input type="email" name="email" required></div>
+      <div class="field"><label>Temporary password</label><input type="text" name="password" minlength="8" required></div>
+      <label class="check field"><input type="checkbox" name="is_admin"> Admin (can manage the team)</label>
+      <button class="btn btn-primary">Add user</button>
+    </form>
+  </div>
+  {% else %}<div class="card card-b muted">Only HR admins can add users.</div>{% endif %}
+</div>
+<div class="card" style="margin-top:20px">
+  <div class="card-h"><h3>AI configuration</h3><span class="muted" style="font-size:13px">Set in .env · test with <code>flask --app app ai-check</code></span></div>
+  <div class="table-wrap"><table class="t"><tbody>
+    <tr><td style="width:220px">Chat model</td><td><b>{{ ai_status.llm_model or '—' }}</b> via {{ ai_status.llm_provider }}
+      {% if ai_status.llm_ready %}<span class="badge b-approved">ready</span>{% else %}<span class="badge b-rejected">off</span> <span class="muted">{{ ai_status.llm_problem }}</span>{% endif %}</td></tr>
+    <tr><td>Structured output</td><td>{{ ai_status.structured_output }}</td></tr>
+    <tr><td>Embeddings</td><td>{{ ai_status.embeddings_model or '' }} {{ '(' + ai_status.embeddings_provider + ')' }}</td></tr>
+    <tr><td>LangSmith tracing</td><td>{{ ai_status.langsmith }}{% if ai_status.langsmith == 'on' %} · project <b>{{ ai_status.langsmith_project }}</b>{% endif %}</td></tr>
+  </tbody></table></div>
+</div>
+{% endblock %}

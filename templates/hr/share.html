@@ -1,0 +1,108 @@
+{% extends "hr/_layout.html" %}
+{% block title %}Share · {{ job.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('hr.jobs') }}">Jobs</a> / <a href="{{ url_for('hr.job_review', job_id=job.id) }}">{{ job.title }}</a> / Share</div>
+    <h1>Share with internal staff</h1>
+    <p>Send the application link to staff so they can apply or refer someone. Anyone who applies through this link is tagged <b>Internal</b> in the pipeline ({{ internal_apps }} so far).</p>
+  </div>
+  <a class="btn" href="{{ url_for('hr.pipeline', job_id=job.id, source='internal') }}">Internal applicants</a>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <div class="card card-b">
+      <h3>Send by email</h3>
+      {% if not email_on %}
+      <div class="flash info" style="margin:12px 0 0">Email sending isn't set up yet. Add the email settings to <code>.env</code> (SMTP, or Microsoft 365 via Graph; see the README), or copy the link on the right, or use “Open in your email app”.</div>
+      {% endif %}
+      <form method="post" style="margin-top:14px" id="sendForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="send">
+        <div class="field"><label for="recipients">Staff email addresses <span class="hint">separate with commas, spaces or new lines{% if domains %} · only @{{ domains|join(', @') }} addresses{% endif %}</span></label>
+          <textarea name="recipients" id="recipients" rows="5" placeholder="priya@{{ domains[0] if domains else 'company.com' }}, sales-team@{{ domains[0] if domains else 'company.com' }}">{{ form.get('recipients', '') }}</textarea></div>
+        <div class="field"><label for="subject">Subject</label><input type="text" name="subject" id="subject" value="{{ form.get('subject') or 'Internal opening: ' ~ job.title }}"></div>
+        <div class="field"><label for="message">Message <span class="hint">optional, appears above the job details</span></label>
+          <textarea name="message" id="message" rows="3" placeholder="We're hiring internally first. Apply by Friday, or forward to someone who'd be a great fit.">{{ form.get('message', '') }}</textarea></div>
+        <div class="row">
+          <button class="btn btn-primary" {{ 'disabled' if not email_on }}>Send emails</button>
+          <a class="btn" id="mailtoBtn" href="#">Open in your email app</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Sharing log</h3><span class="muted" style="font-size:13px">Emails sent from this page</span></div>
+      {% if shares %}
+      <div class="table-wrap"><table class="t">
+        <thead><tr><th>When</th><th>Sent by</th><th>Recipients</th><th class="num">Delivered</th></tr></thead>
+        <tbody>{% for s in shares %}
+          <tr><td style="white-space:nowrap">{{ s.created_at|dt('%d %b %Y, %H:%M') }}</td>
+            <td>{{ s.sent_by.name if s.sent_by else '—' }}</td>
+            <td style="max-width:360px"><small>{{ s.recipients }}</small>{% if s.failed %}<br><small style="color:var(--bad)">Failed: {{ s.failed|replace('\n', '; ') }}</small>{% endif %}</td>
+            <td class="num">{{ s.sent_ok }} / {{ s.recipients.split(', ')|length }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+      {% else %}<div class="empty">Nothing sent yet.</div>{% endif %}
+    </div>
+  </div>
+
+  <aside class="stack sticky">
+    <div class="card card-b">
+      <h3>Staff application link</h3>
+      <div class="field" style="margin-top:10px"><input type="text" id="linkBox" value="{{ link }}" readonly onclick="this.select()"></div>
+      <button class="btn" type="button" id="copyBtn" style="width:100%">Copy link</button>
+      {% if link_note %}<p class="hint" style="margin-top:8px;color:var(--warn)">{{ link_note }}</p>{% endif %}
+      <p class="hint" style="margin-top:10px">Paste it in Teams, WhatsApp groups or the intranet. Applications through it are marked Internal.</p>
+      <form method="post" onsubmit="return confirm('Create a new link? The current link will stop working.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reset_link">
+        <button class="btn btn-sm btn-danger">Reset link</button>
+      </form>
+    </div>
+    <div class="card card-b">
+      <h3>Who can see this job</h3>
+      <form method="post" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="visibility">
+        <label class="check" style="margin-bottom:8px"><input type="radio" name="visibility" value="public" {{ 'checked' if not job.is_internal_only }}> <span>Careers site <b>and</b> staff link</span></label>
+        <label class="check field"><input type="radio" name="visibility" value="internal" {{ 'checked' if job.is_internal_only }}> <span>Staff link only (hidden from the careers site)</span></label>
+        <button class="btn btn-sm">Update</button>
+      </form>
+    </div>
+    <div class="card card-b">
+      <h3>External job sites</h3>
+      {% if job.is_internal_only %}
+        <p class="hint" style="margin-top:8px">This job is staff-only. Choose “Careers site and staff link” above to advertise it externally.</p>
+      {% else %}
+        <p class="hint" style="margin-top:8px">Copy the JD as plain text with the public apply link, then paste it into LinkedIn, Naukri, Indeed, Bayt or any other job site.</p>
+        <textarea id="boardText" readonly hidden>{{ board_text }}</textarea>
+        <button class="btn" type="button" id="boardBtn" style="width:100%;margin-top:6px">Copy for job board</button>
+        <p class="hint" style="margin-top:10px">Once the careers site is on a public web address, this page also carries Google for Jobs data, so Google can list the role in its job search.</p>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const box = document.getElementById('linkBox'), btn = document.getElementById('copyBtn');
+  try { await navigator.clipboard.writeText(box.value); btn.textContent = 'Copied'; }
+  catch (e) { box.select(); btn.textContent = 'Press Ctrl+C to copy'; }
+  setTimeout(() => btn.textContent = 'Copy link', 2000);
+});
+const boardBtn = document.getElementById('boardBtn');
+if (boardBtn) boardBtn.addEventListener('click', async () => {
+  const box = document.getElementById('boardText');
+  try { await navigator.clipboard.writeText(box.value); boardBtn.textContent = 'Copied: paste it into the job site'; }
+  catch (e) { box.hidden = false; box.select(); boardBtn.textContent = 'Press Ctrl+C to copy'; }
+  setTimeout(() => boardBtn.textContent = 'Copy for job board', 2500);
+});
+document.getElementById('mailtoBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  const to = document.getElementById('recipients').value.split(/[\s,;]+/).filter(Boolean).join(',');
+  const subject = document.getElementById('subject').value;
+  const msg = document.getElementById('message').value;
+  const body = (msg ? msg + '\n\n' : '') + {{ job.title|tojson }} + '\nRead the job description and apply here:\n' + {{ link|tojson }};
+  location.href = 'mailto:?bcc=' + encodeURIComponent(to) + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+});
+</script>{% endblock %}

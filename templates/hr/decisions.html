@@ -1,0 +1,65 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import status as badge %}
+{% block title %}Decision log{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Decision log</h1><p>Every shortlist and rejection: who decided, when, why, and the candidate's score at that moment.</p></div>
+  <a class="btn" href="{{ url_for('hr.decisions_csv', **args.to_dict()) }}">Export CSV</a>
+</div>
+
+<form class="card card-b" method="get" style="margin-bottom:16px">
+  <div class="row" style="align-items:flex-end;gap:12px">
+    <div style="min-width:200px;flex:1"><label for="fJob">Job</label>
+      <select name="job" id="fJob"><option value="">All jobs</option>{% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if args.get('job') == j.id|string }}>{{ j.title }}</option>{% endfor %}</select></div>
+    <div style="min-width:170px"><label for="fOut">Outcome</label>
+      <select name="outcome" id="fOut">
+        <option value="">All decisions</option>
+        <option value="shortlisted" {{ 'selected' if args.get('outcome') == 'shortlisted' }}>Shortlisted / moved forward</option>
+        <option value="not_shortlisted" {{ 'selected' if args.get('outcome') == 'not_shortlisted' }}>Not shortlisted (rejected / withdrawn)</option>
+      </select></div>
+    <div style="min-width:170px"><label for="fBy">Decided by</label>
+      <select name="by" id="fBy"><option value="">Anyone</option>
+        {% for u in hr_users %}<option value="{{ u.id }}" {{ 'selected' if args.get('by') == u.id|string }}>{{ u.name }}</option>{% endfor %}
+        <option value="system" {{ 'selected' if args.get('by') == 'system' }}>System (auto-shortlist)</option>
+        <option value="candidate" {{ 'selected' if args.get('by') == 'candidate' }}>Candidate (withdrew)</option>
+      </select></div>
+    <div><label for="fFrom">From</label><input type="date" name="from" id="fFrom" value="{{ args.get('from', '') }}"></div>
+    <div><label for="fTo">To</label><input type="date" name="to" id="fTo" value="{{ args.get('to', '') }}"></div>
+    <button class="btn btn-primary">Filter</button>
+    {% if args %}<a href="{{ url_for('hr.decisions') }}" class="muted">Clear</a>{% endif %}
+  </div>
+</form>
+
+{% if summary %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-h"><h3>Who decided what</h3><span class="muted" style="font-size:13px">{{ total }} decision{{ '' if total == 1 else 's' }} in this view</span></div>
+  <div class="table-wrap"><table class="t">
+    <thead><tr><th>Decided by</th><th class="num">Shortlisted / moved forward</th><th class="num">Not shortlisted</th><th class="num">Moved back to review</th></tr></thead>
+    <tbody>{% for who, c in summary.items() %}
+      <tr><td><b>{{ who }}</b></td><td class="num">{{ c['shortlisted'] }}</td><td class="num">{{ c['not shortlisted'] }}</td><td class="num">{{ c['back to review'] }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+
+{% if events %}
+<div class="card table-wrap"><table class="t">
+  <thead><tr><th>When</th><th>Candidate</th><th>Job</th><th>Change</th><th>Decided by</th><th>Reason / note</th><th class="num">Score</th></tr></thead>
+  <tbody>{% for e in events %}
+    <tr>
+      <td style="white-space:nowrap">{{ e.created_at|dt('%d %b %Y') }}<br><small class="muted">{{ e.created_at|dt('%H:%M') }}</small></td>
+      <td class="who"><b><a href="{{ url_for('hr.application', app_id=e.application_id) }}" style="color:var(--ink)">{{ e.candidate.name if e.candidate else '—' }}</a></b>
+        <small>{{ e.candidate.id_masked if e.candidate else '' }}{% if e.application and e.application.source == 'internal' %} · Internal{% endif %}</small></td>
+      <td>{{ e.job.title if e.job else '—' }}</td>
+      <td style="white-space:nowrap">{% if e.posted %}<span class="badge b-posted">Posted to candidate</span> {{ badge(e.to_status) }}{% else %}{{ badge(e.from_status) }} → {{ badge(e.to_status) }}{% endif %}</td>
+      <td>{{ e.actor_name }}</td>
+      <td style="max-width:280px">{{ e.reason or '' }}{% if e.note %}<br><small class="muted">{{ e.note }}</small>{% endif %}</td>
+      <td class="num">{{ (e.score|round|int ~ '%') if e.score is not none else '—' }}</td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% if total > events|length %}<p class="muted" style="margin-top:10px">Showing the latest {{ events|length }} of {{ total }}. Export CSV for all of them.</p>{% endif %}
+{% else %}
+<div class="card empty">No decisions match these filters yet.</div>
+{% endif %}
+{% endblock %}

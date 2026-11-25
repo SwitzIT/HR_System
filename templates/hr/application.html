@@ -1,0 +1,147 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import ring, status as badge %}
+{% block title %}{{ a.candidate.name }} · {{ job.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('hr.jobs') }}">Jobs</a> / <a href="{{ url_for('hr.pipeline', job_id=job.id) }}">{{ job.title }}</a> / Candidate {{ rank }} of {{ total }}</div>
+    <h1 class="row" style="gap:12px">{{ a.candidate.name }} {{ badge(a.status) }}</h1>
+    <p>{{ a.candidate.email }}{% if a.candidate.phone %} · {{ a.candidate.phone }}{% endif %}{% if a.linkedin %} · <a href="{{ a.linkedin }}" target="_blank" rel="noopener">LinkedIn</a>{% endif %} · applied {{ a.applied_at|dt }}
+      · {{ a.candidate.id_masked }} {% if a.source == 'internal' %}<span class="badge b-internal">Internal applicant</span>{% endif %}</p>
+  </div>
+  <div class="row">
+    {% if prev_id %}<a class="btn" href="{{ url_for('hr.application', app_id=prev_id) }}">← Prev</a>{% endif %}
+    {% if next_id %}<a class="btn" href="{{ url_for('hr.application', app_id=next_id) }}">Next →</a>{% endif %}
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    {% if a.screening_state in ('queued', 'running') %}
+    <div class="card card-b screening-wait" data-autorefresh="15">
+      <h2 style="margin-bottom:4px"><span class="spinner"></span>{{ a.screening_label }}</h2>
+      <p class="muted" style="margin:0">The candidate's submission is saved. The AI screening runs in the background, one resume at a time; this page refreshes until the result is ready. You can still review the resume and decide now.</p>
+    </div>
+    {% elif a.screening_state == 'failed' %}
+    <div class="flash error" style="margin:0">{{ a.screening_error or 'Screening failed.' }} Use “Re-screen against current JD” to try again.</div>
+    {% endif %}
+    {% if a.screened_at %}
+    <div class="card card-b">
+      <div class="row" style="gap:24px;align-items:center;flex-wrap:nowrap">
+        {{ ring(a.score_final or 0) }}
+        <div style="flex:1;min-width:0">
+          <h2 style="margin-bottom:4px">{{ a.recommendation or 'Not screened' }}</h2>
+          <p style="margin-bottom:10px;color:var(--ink-2)">{{ a.summary or '' }}</p>
+          <div class="grid g3" style="gap:10px">
+            <div><small class="muted">AI score</small><br><b>{{ (a.score_ai|round|int ~ '%') if a.score_ai is not none else 'n/a' }}</b></div>
+            <div><small class="muted">Keyword score</small><br><b>{{ (a.score_keyword|round|int ~ '%') if a.score_keyword is not none else 'n/a' }}</b></div>
+            <div><small class="muted">Experience</small><br><b>{{ ('~%g yrs'|format(a.years_experience)) if a.years_experience else 'unclear' }}</b> <small class="muted">/ {{ job.experience_min or 0 }}+ req.</small></div>
+          </div>
+        </div>
+      </div>
+      {% if a.screening_error %}<div class="flash error" style="margin:14px 0 0">AI screening failed, so the keyword score was used. {{ a.screening_error|truncate(160) }}</div>{% endif %}
+      <p class="hint" style="margin:14px 0 0">Scored by {{ a.scorer or '—' }} on {{ a.screened_at|dt('%d %b %Y, %H:%M') }}. Scores support, never replace, HR judgement.{% if a.auto_shortlisted %} The AI suggested <b>Shortlisted</b> (score at or above the job's threshold); the candidate doesn't see this until you post it.{% endif %}</p>
+    </div>
+
+    <div class="grid g2">
+      <div class="card card-b">
+        <h3>Skills found</h3>
+        <div style="margin-top:10px">{% for s in a.matched_skills %}<span class="chip ok">✓ {{ s }}</span>{% else %}<span class="muted">None detected</span>{% endfor %}</div>
+        <h3 style="margin-top:14px">Missing</h3>
+        <div style="margin-top:10px">{% for s in a.missing_skills %}<span class="chip bad">✕ {{ s }}</span>{% else %}<span class="muted">No gaps on must-haves</span>{% endfor %}</div>
+      </div>
+      <div class="card card-b">
+        <h3>Strengths</h3>
+        <ul style="margin:8px 0 14px;padding-left:18px">{% for s in a.strengths %}<li>{{ s }}</li>{% else %}<li class="muted">—</li>{% endfor %}</ul>
+        <h3>Gaps & risks</h3>
+        <ul style="margin:8px 0 0;padding-left:18px">{% for s in a.gaps %}<li>{{ s }}</li>{% else %}<li class="muted">—</li>{% endfor %}</ul>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if a.cover_note %}<div class="card card-b"><h3>Candidate's note</h3><p style="white-space:pre-wrap;margin:8px 0 0">{{ a.cover_note }}</p></div>{% endif %}
+
+    <div class="card">
+      <div class="card-h"><h3>Resume</h3><a class="btn btn-sm" href="{{ url_for('candidate.resume', app_id=a.id, dl=1) }}">Download {{ a.resume_filename }}</a></div>
+      <div class="card-b">
+        {% if a.resume_path and a.resume_path.endswith('.pdf') %}
+          <iframe class="resume-frame" src="{{ url_for('candidate.resume', app_id=a.id) }}"></iframe>
+        {% else %}
+          <div class="resume-text">{{ a.resume_text or 'No text could be extracted.' }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <aside class="stack sticky">
+    <div class="card card-b candidate-sees {{ 'unposted' if a.needs_posting }}">
+      <h3>Candidate sees</h3>
+      <p style="margin:8px 0 0">{{ badge(a.visible_status, a.candidate_status) }}
+        {% if a.posted_at and a.status != 'withdrawn' %}<br><small class="muted">Posted {{ a.posted_at|dt('%d %b %Y, %H:%M') }}{% if a.posted_by %} by {{ a.posted_by.name }}{% endif %}</small>{% endif %}</p>
+      {% if a.needs_posting %}
+      <p class="hint" style="margin:10px 0 0">Current stage <b>{{ a.status.title() }}</b> isn't visible to the candidate yet.</p>
+      <form method="post" action="{{ url_for('hr.application_update', app_id=a.id) }}" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="post">
+        <button class="btn btn-primary" style="width:100%">Post “{{ a.CANDIDATE_LABELS.get(a.status, a.status.title()) }}” to candidate</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="card card-b" id="decision">
+      <h3>Decision</h3>
+      {% if a.decided_at %}<p class="muted" style="font-size:13px;margin:6px 0 0">Last decision: <b>{{ a.status.title() }}</b> by {{ a.decided_by_name }} · {{ a.decided_at|dt('%d %b %Y, %H:%M') }}{% if a.decision_reason %}<br>Reason: {{ a.decision_reason }}{% endif %}</p>{% endif %}
+      {% if a.status == 'withdrawn' %}
+        <p class="muted" style="margin-top:10px">The candidate withdrew this application.</p>
+      {% else %}
+      <form method="post" action="{{ url_for('hr.application_update', app_id=a.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% set cur = preset_status or a.status %}
+        <div class="field" style="margin-top:10px"><label for="stageSel">Stage</label>
+          <select name="status" id="stageSel">{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == cur }}>{{ s.title() }}</option>{% endfor %}</select></div>
+        <div id="reasonBox" {{ '' if cur == 'rejected' else 'hidden' }}>
+          <div class="field"><label for="reasonSel">Rejection reason <span class="hint">required</span></label>
+            <select name="reason" id="reasonSel"><option value="">Choose a reason…</option>{% for r in reasons %}<option>{{ r }}</option>{% endfor %}</select></div>
+          <div class="field" id="otherBox" hidden><label for="reasonOther">Describe the reason</label><input type="text" name="reason_other" id="reasonOther" maxlength="200"></div>
+        </div>
+        <div class="field"><label for="decisionNote">Decision note <span class="hint">optional · logged with this change</span></label><input type="text" name="decision_note" id="decisionNote" maxlength="500"></div>
+        <div class="field"><label>HR notes <span class="hint">internal only</span></label><textarea name="hr_notes" rows="4">{{ a.hr_notes or '' }}</textarea></div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap">
+          <button class="btn" name="action" value="status" style="flex:1">Save</button>
+          <button class="btn btn-primary" name="action" value="status_post" style="flex:1.4">Save &amp; post</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0"><b>Save</b> keeps the change internal. <b>Save &amp; post</b> also shows it to the candidate.</p>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('hr.application_update', app_id=a.id) }}" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="rescreen">
+        <button class="btn" style="width:100%">↻ Re-screen against current JD</button>
+      </form>
+    </div>
+    <div class="card card-b">
+      <h3>Details</h3>
+      <p style="font-size:14px;margin:10px 0 0">Notice period: <b>{{ a.notice_period or '—' }}</b><br>Current CTC: <b>{{ a.current_ctc or '—' }}</b></p>
+    </div>
+    {% if current_user.is_admin %}
+    <div class="card card-b">
+      <h3>Decision log</h3>
+      <ul class="timeline" style="margin-top:10px">{% for e in events %}
+        <li><b>{% if e.posted %}Posted to candidate: {{ a.CANDIDATE_LABELS.get(e.to_status, e.to_status.title()) }}{% else %}{{ 'Applied' if not e.from_status else e.from_status.title() ~ ' → ' ~ e.to_status.title() }}{% endif %}</b>
+          {% if e.score is not none and e.from_status and not e.posted %}<span class="muted">· score {{ e.score|round|int }}%</span>{% endif %}<br>
+          {% if e.reason %}{{ e.reason }}<br>{% endif %}{% if e.note %}<i>{{ e.note }}</i><br>{% endif %}
+          <small>{{ e.actor_name }} · {{ e.created_at|dt('%d %b %Y, %H:%M') }}</small></li>
+      {% else %}<li class="muted">No decisions yet.</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if others %}<div class="card card-b">
+      <h3>Other applications by this person</h3>
+      <ul class="timeline" style="margin-top:10px">{% for o in others %}
+        <li><a href="{{ url_for('hr.application', app_id=o.id) }}">{{ o.job.title }}</a> · {{ o.status.title() }}<br><small>applied {{ o.applied_at|dt }}{% if o.decided_at %} · decided {{ o.decided_at|dt }} by {{ o.decided_by_name }}{% endif %}</small></li>
+      {% endfor %}</ul>
+    </div>{% endif %}
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+(function(){const st=document.getElementById('stageSel');if(!st)return;const rb=document.getElementById('reasonBox'),rs=document.getElementById('reasonSel'),ob=document.getElementById('otherBox');
+const sync=()=>{const rej=st.value==='rejected';rb.hidden=!rej;rs.required=rej;ob.hidden=!(rej&&rs.value==='Other');document.getElementById('reasonOther').required=!ob.hidden;};
+st.addEventListener('change',sync);rs.addEventListener('change',sync);sync();})();
+</script>{% endblock %}

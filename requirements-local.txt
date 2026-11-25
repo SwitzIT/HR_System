@@ -1,0 +1,7 @@
+# Extra packages for LLM_PROVIDER=huggingface_local and/or EMBEDDINGS_PROVIDER=huggingface_local
+# (runs open models on this machine; free, no API credits). Large download (PyTorch).
+-r requirements.txt
+transformers>=4.44
+torch>=2.3
+accelerate>=0.33
+sentence-transformers>=3.0

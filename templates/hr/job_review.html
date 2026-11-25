@@ -1,0 +1,121 @@
+{% extends "hr/_layout.html" %}
+{% from "_macros.html" import status, icon %}
+{% block title %}JD · {{ job.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('hr.jobs') }}">Jobs</a> / {{ job.title }}</div>
+    <h1 class="row" style="gap:12px">{{ job.title }} {{ status(job.status) }}</h1>
+    <p>{{ job.department or '—' }} · {{ job.location or '—' }} · {{ job.experience_label }} · created by {{ job.created_by.name if job.created_by else '—' }} on {{ job.created_at|dt }}</p>
+  </div>
+  <div class="row">
+    <a class="btn" href="{{ url_for('hr.job_edit', job_id=job.id) }}">Edit requisition</a>
+    <a class="btn" href="{{ url_for('public.job_detail', job_id=job.id) }}" target="_blank">Preview ↗</a>
+    <a class="btn btn-primary" href="{{ url_for('hr.pipeline', job_id=job.id) }}">Candidates ({{ n_apps }})</a>
+  </div>
+</div>
+
+{% if job.review_notes and job.status == 'draft' %}
+<div class="flash info"><b>Reviewer notes:</b> {{ job.review_notes }}</div>
+{% endif %}
+
+{% if flags %}
+<div class="issue-box" role="alert">
+  <b>Check before approving: {{ flags|length }} line{{ "" if flags|length == 1 else "s" }} need{{ "s" if flags|length == 1 else "" }} a closer look</b>
+  <ul>{% for line, why in flags %}<li><span class="muted">{{ why }}:</span> {{ line|truncate(160) }}</li>{% endfor %}</ul>
+  <div style="margin-top:6px">Edit or remove these lines in the draft below if they aren't right, then save. The list updates after each save. Required, Preferred and Position Details are written by the app from the requisition.</div>
+</div>
+{% endif %}
+<form method="post" action="{{ url_for('hr.job_action', job_id=job.id) }}" id="jdForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="split">
+  <div class="card">
+    <div class="card-h">
+      <div class="tabs" style="margin:0;border:0">
+        <a href="#" class="on" data-tab="edit">Edit (Markdown)</a>
+        <a href="#" data-tab="preview">Preview</a>
+      </div>
+      <span class="muted" style="font-size:12.5px">Source: {{ {'ai':'✦ AI draft','template':'Template draft','manual':'Written by HR'}.get(job.jd_source, '—') }}{% if job.last_edited_by %} · last edit {{ job.last_edited_by.name }}{% endif %}</span>
+    </div>
+    <div class="card-b">
+      <div id="pane-edit"><textarea name="jd_text" class="mono" id="jdText" placeholder="## About the role&#10;…">{{ job.jd_text }}</textarea></div>
+      <div id="pane-preview" class="prose" style="display:none;min-height:460px"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" name="action" value="save">Save draft</button>
+        {% if job.status == 'draft' %}<button class="btn" name="action" value="submit">Submit for review</button>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <aside class="stack">
+    {% if job.status in ('draft','pending_review') %}
+    <div class="card card-b">
+      <h3>Human review & approval</h3>
+      <p class="muted" style="font-size:13.5px">Check facts (no invented benefits/salary), must-have vs nice-to-have, and inclusive language.</p>
+      {% if maker_checker %}<p class="hint">Maker-checker is on: the person who created or last edited this JD can't approve it.</p>{% endif %}
+      <div class="field"><label>Reviewer notes <span class="hint">optional</span></label><textarea name="review_notes" rows="3">{{ job.review_notes or '' }}</textarea></div>
+      <div class="field"><label>Where to post</label>
+        <label class="check" style="margin-bottom:6px"><input type="radio" name="visibility" value="public" {{ 'checked' if (job.visibility or 'public') == 'public' }}> <span>Careers site <b>and</b> internal staff link</span></label>
+        <label class="check"><input type="radio" name="visibility" value="internal" {{ 'checked' if job.visibility == 'internal' }}> <span>Internal staff only (not on the careers site)</span></label></div>
+      <label class="check field"><input type="checkbox" name="confirm_review" value="1"> I've reviewed this JD for accuracy and fairness.</label>
+      <div class="row">
+        <button class="btn btn-primary" name="action" value="approve">✓ Approve & publish</button>
+        {% if job.status == 'pending_review' %}<button class="btn" name="action" value="send_back">Send back</button>{% endif %}
+      </div>
+    </div>
+    {% elif job.status == 'approved' %}
+    <div class="card card-b">
+      <h3 class="row" style="gap:8px">Published <span class="badge {{ 'b-internal' if job.is_internal_only else 'b-public' }}">{{ 'Internal only' if job.is_internal_only else 'Public + internal' }}</span></h3>
+      <p class="muted" style="font-size:13.5px">Approved by <b>{{ job.approved_by.name if job.approved_by else '—' }}</b> on {{ job.approved_at|dt('%d %b %Y, %H:%M') }}. Live on the careers site and accepting applications.</p>
+      <p class="hint">Editing the text will move it back to review until re-approved.</p>
+      <div class="row">
+        <a class="btn btn-primary" href="{{ url_for('hr.share_job', job_id=job.id) }}">Share with internal staff</a>
+        <button class="btn btn-danger" name="action" value="close" onclick="return confirm('Close this job? Candidates will no longer be able to apply.')">Close job</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="card card-b"><h3>Closed</h3><p class="muted">Not accepting applications.</p><button class="btn" name="action" value="reopen">Reopen</button></div>
+    {% endif %}
+
+    <div class="card card-b">
+      <h3 class="row" style="gap:6px">{{ icon('spark') }} Refine with AI</h3>
+      <div class="field" style="margin-top:10px"><textarea name="instructions" rows="3" placeholder="e.g. Shorter, more emphasis on stakeholder management, add a line about mentoring juniors"></textarea></div>
+      <button class="btn" name="action" value="regenerate" id="regenBtn">Regenerate draft</button>
+      <p class="hint" style="margin-top:8px">{% if not AI_ON %}AI is off — this rebuilds the template draft.{% elif current_user.is_admin %}Uses {{ AI_MODEL }}.{% endif %} Every version is kept below.</p>
+    </div>
+
+    <div class="card card-b">
+      <h3>ATS settings</h3>
+      <div class="row" style="margin-top:10px;flex-wrap:nowrap">
+        <input type="number" min="0" max="100" name="shortlist_threshold" value="{{ job.shortlist_threshold }}" style="width:90px">
+        <button class="btn btn-sm" name="action" value="threshold">Set auto-shortlist %</button>
+      </div>
+      <div style="margin-top:12px"><span class="muted" style="font-size:13px">Matched against:</span><br>{% for s in job.skill_list %}<span class="chip">{{ s }}</span>{% endfor %}{% for s in job.nice_list %}<span class="chip" style="opacity:.7">{{ s }}</span>{% endfor %}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Version history</h3></div>
+      <div class="card-b" style="padding-top:8px">
+        {% for r in revisions %}
+        <div class="row between" style="padding:8px 0;{{ 'border-top:1px solid var(--line)' if not loop.first }};flex-wrap:nowrap">
+          <div style="font-size:13px"><b>{{ {'ai':'AI draft','template':'Template draft','hr_edit':'HR edit'}.get(r.source, r.source) }}</b> · {{ r.created_by.name if r.created_by else '—' }}<br><small>{{ r.created_at|dt('%d %b, %H:%M') }}{% if r.note %} · “{{ r.note|truncate(50) }}”{% endif %}</small></div>
+          {% if not loop.first %}<button class="btn btn-sm" form="restore{{ r.id }}">Restore</button>{% else %}<span class="badge">current</span>{% endif %}
+        </div>
+        {% else %}<span class="muted">No versions yet.</span>{% endfor %}
+      </div>
+    </div>
+    {% if n_apps == 0 %}<button class="btn btn-danger btn-sm" name="action" value="delete" onclick="return confirm('Delete this requisition permanently?')">Delete requisition</button>{% endif %}
+  </aside>
+</div>
+</form>
+{% for r in revisions %}<form id="restore{{ r.id }}" method="post" action="{{ url_for('hr.restore_revision', job_id=job.id, rev_id=r.id) }}" onsubmit="return confirm('Restore this version?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>{% endfor %}
+{% endblock %}
+{% block scripts %}<script>
+const tabs=document.querySelectorAll('[data-tab]'),ed=document.getElementById('pane-edit'),pv=document.getElementById('pane-preview');
+tabs.forEach(t=>t.addEventListener('click',async e=>{e.preventDefault();tabs.forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  if(t.dataset.tab==='preview'){const fd=new FormData();fd.append('text',document.getElementById('jdText').value);
+    const r=await fetch('{{ url_for('hr.preview_md') }}',{method:'POST',body:fd,headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}});
+    pv.innerHTML=await r.text();ed.style.display='none';pv.style.display='block';}
+  else{ed.style.display='block';pv.style.display='none';}}));
+document.getElementById('jdForm').addEventListener('submit',e=>{if(e.submitter&&e.submitter.value==='regenerate'){setTimeout(()=>{e.submitter.disabled=true;e.submitter.textContent='Regenerating…'},0)}});
+</script>{% endblock %}

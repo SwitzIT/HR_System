@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ code }}{% endblock %}
+{% block content %}
+<div class="auth-wrap card card-b" style="text-align:center">
+  <h1>{{ code }}</h1><p class="muted">{{ msg }}</p>
+  <a class="btn" href="{{ url_for('public.home') }}">Go home</a>
+</div>
+{% endblock %}
